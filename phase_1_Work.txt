@@ -1,0 +1,521 @@
+================================================================================
+PLACEPREP SECURE — PHASE 1 DEVELOPMENT GUIDE & ARCHITECTURE EXPLAINER
+Author: Nikita Bharti (Senior Frontend Web Developer)
+Target Audience: Beginners, Students, Evaluators & Team Collaborators
+File: phase_1_Work.txt
+================================================================================
+
+TABLE OF CONTENTS:
+1. Executive Summary: What Was Accomplished in Phase 1
+2. The Big Picture: How PlacePrep Secure Works
+3. Beginner's Guide: Explaining Every Tech Stack & Concept
+   3.1 What is React (SPA)?
+   3.2 What is Vite?
+   3.3 What is Redux Toolkit (State Management)?
+   3.4 What is React Router & Route Protection?
+   3.5 What is Microsoft Entra ID & MSAL (OAuth2 + PKCE)?
+   3.6 What is the Student ID + OTP (Passwordless) Flow?
+   3.7 What is Multi-Tenancy in SaaS?
+   3.8 What is Role-Based Access Control (RBAC)?
+   3.9 What is Tailwind CSS?
+   3.10 Storage: LocalStorage vs SessionStorage vs Redux Memory
+4. Detailed File-by-File Walkthrough (How to Read the Project)
+5. How Authentication & Security Flow Works (Step-by-Step Data Flow)
+6. How to Run, Test, and Verify Phase 1 on Your Machine
+7. Summary & Handover for Phase 2
+
+================================================================================
+1. EXECUTIVE SUMMARY: WHAT WAS ACCOMPLISHED IN PHASE 1
+================================================================================
+
+In Phase 1 ("Foundation, Identity & Infrastructure Setup"), my job as Nikita Bharti 
+(Senior Frontend Web Developer) was to build the rock-solid backbone of the 
+PlacePrep Secure web application.
+
+Before building any test screens, code editors, or AI graphs, an enterprise 
+application MUST have two critical systems:
+  1. A Central Brain: To remember who is logged in, their user role, their college, 
+     and their security token across the entire application without needing to 
+     re-fetch or lose data when moving between pages.
+  2. A Digital Bouncer (Security Guards): To strictly enforce that students can 
+     NEVER peek into teacher grading dashboards or admin settings, and that 
+     teachers cannot access university-level billing or platform-owner consoles.
+
+What was built in Phase 1:
+- A centralized Redux Toolkit store (`src/store/index.js`) with an authentication 
+  slice (`src/features/auth/authSlice.js`).
+- Dual authentication methods:
+    a) Student ID + One-Time Passkey (OTP) passwordless login.
+    b) Faculty & Admin Single Sign-On (SSO) using Microsoft Entra ID (MSAL).
+- Three layers of route security guards (`ProtectedRoute`, `RoleGuard`, `PublicOnlyRoute`).
+- An informative 403 Forbidden (Access Denied) screen that explains why an unauthorized 
+  action was blocked.
+- Dedicated dashboards for all 4 roles: Student, Teacher, Institution Admin, and 
+  Super Admin.
+- A live Developer Role Sandbox (`RoleSwitcherDev`) enabling any reviewer to test all 
+  4 roles and verify route guard behavior in 1 click.
+- 100% clean production build and 0 ESLint errors.
+
+
+================================================================================
+2. THE BIG PICTURE: HOW PLACEPREP SECURE WORKS
+================================================================================
+
+Imagine a university placement cell preparing thousands of engineering students 
+for top MNC hiring drives (TCS, Accenture, Infosys, Capgemini). 
+
+Modern hiring tests are NOT just simple multiple-choice questions anymore. MNCs now 
+use:
+  - Gamified cognitive tests (Grid memory tests, path-finding puzzles).
+  - Code simulations with hidden test cases run in strict sandboxes.
+  - Browser anti-cheat detection (tracking if you switch browser tabs or paste answers).
+
+PlacePrep Secure bridges this gap. It connects four groups of people:
+  1. Students: Take tests, play cognitive games, get AI-powered study plans.
+  2. Teachers: Review AI-suggested questions, watch live proctoring (tab-switchers), 
+     and view heatmaps showing exactly which DSA topics students fail.
+  3. College Admins (HODs): Upload student rosters via CSV, invite faculty, and track 
+     overall department placement readiness.
+  4. Platform Super Admins: Manage multiple universities (Tenants) on one platform.
+
+Because these 4 roles have completely different duties, the frontend must ensure 
+strict data isolation and role boundaries. That is what Phase 1 establishes!
+
+
+================================================================================
+3. BEGINNER'S GUIDE: EXPLAINING EACH TECH STACK & CONCEPT
+================================================================================
+
+If you are new to web development, here is a simple breakdown of every technology 
+used in this project, why we chose it, and real-world analogies:
+
+--------------------------------------------------------------------------------
+3.1 WHAT IS REACT (SPA)?
+--------------------------------------------------------------------------------
+- What it is: React is a JavaScript library for building user interfaces. We use it 
+  as a Single Page Application (SPA).
+- The Problem without it: In traditional websites (like old PHP or HTML sites), 
+  every time you click a link, the entire browser window goes white, refreshes, 
+  and downloads a whole new webpage from the server.
+- How React Solves It: In a React SPA, the browser loads one single HTML file 
+  (`index.html`) once. When you click between "Dashboard", "Assessments", or 
+  "Settings", React instantly swaps out only the necessary parts of the screen 
+  in milliseconds without refreshing the browser. It feels as fast as a desktop app.
+
+--------------------------------------------------------------------------------
+3.2 WHAT IS VITE?
+--------------------------------------------------------------------------------
+- What it is: Vite (pronounced "veet", French for "quick") is the modern build tool 
+  and local development server for frontend projects.
+- Why we use it: Older tools like Webpack took 30 to 60 seconds just to start 
+  up or recompile code on every edit. Vite uses native browser ES Modules and 
+  starts up in less than 200 milliseconds. When you change a file, Hot Module 
+  Replacement (HMR) updates your screen instantly.
+
+--------------------------------------------------------------------------------
+3.3 WHAT IS REDUX TOOLKIT (STATE MANAGEMENT)?
+--------------------------------------------------------------------------------
+- What is "State"?: State is any data that changes over time in your app. Examples: 
+  Who is currently logged in? Is the loading spinner spinning? Did an error occur?
+- The Problem without Redux (Prop Drilling):
+  Imagine your application has 30 components nested inside each other. If the top 
+  header needs to know the logged-in student's name, and a button 10 levels deep 
+  also needs it, without Redux you would have to pass that user data down through 
+  10 parent components manually. That is called "prop drilling" and creates messy code.
+- How Redux Toolkit Solves It (The Central Bank Analogy):
+  Redux creates a single, global "Store" (like a central bank). Any component 
+  anywhere in your app can directly read data from the store or dispatch an action 
+  to update it.
+- Key Redux Terms Explained Simply:
+  * Store: The single box holding all application state (`src/store/index.js`).
+  * Slice: A piece of the store responsible for one domain (`src/features/auth/authSlice.js`).
+  * Reducer: A pure function that says: "Given the current state and this action, 
+    here is the new state."
+  * Action / Dispatch: A message sent to the store, e.g., "dispatch(authSuccess(user))".
+  * Thunk: A helper function that handles async operations (like calling an API or 
+    waiting for a network response) before updating the store (`src/features/auth/authThunks.js`).
+  * Selector: A shortcut to grab a specific piece of state, e.g., `selectCurrentUser`.
+
+--------------------------------------------------------------------------------
+3.4 WHAT IS REACT ROUTER & ROUTE PROTECTION?
+--------------------------------------------------------------------------------
+- What it is: `react-router-dom` manages URLs in a Single Page App. When the URL bar 
+  shows `http://localhost:5173/student/dashboard`, React Router tells the app to 
+  display `<StudentDashboard />`.
+- Why Route Protection Matters (The VIP Club Bouncer Analogy):
+  If an unauthenticated stranger tries to open `/student/dashboard` or `/admin/dashboard`, 
+  we cannot let them view the screen.
+- Our Guards:
+  * `ProtectedRoute`: Checks if `isAuthenticated === true`. If not, it kicks the 
+    user back to `/login` and remembers where they were trying to go so it can send 
+    them there after they log in.
+  * `RoleGuard`: Checks if the user's role matches the permitted roles for that page. 
+    If a Student tries to enter `/admin/dashboard`, `RoleGuard` blocks them and 
+    redirects them to `/unauthorized` (403 Forbidden).
+  * `PublicOnlyRoute`: If you are ALREADY logged in, you don't need to see the 
+    login screen again. It automatically routes you forward to your dashboard.
+
+--------------------------------------------------------------------------------
+3.5 WHAT IS MICROSOFT ENTRA ID & MSAL (OAUTH2 + PKCE)?
+--------------------------------------------------------------------------------
+- What is Entra ID?: Formerly called Azure Active Directory (Azure AD). It is 
+  Microsoft's enterprise cloud identity platform used by universities and companies.
+- What is MSAL?: Microsoft Authentication Library (`@azure/msal-browser` and 
+  `@azure/msal-react`).
+- Why we use it for Faculty & Admins:
+  Teachers and university admins already have official institutional Microsoft 
+  accounts (e.g. `prof.sharma@university.edu`). By using Entra ID, the university 
+  can enforce Multi-Factor Authentication (MFA), password rotation, and IT security. 
+  Our app NEVER touches or stores faculty passwords!
+- What is PKCE (Proof Key for Code Exchange)?:
+  Pronounced "pixie". In Single Page Apps running in a browser, client secrets cannot 
+  be safely stored because any user could inspect the JavaScript code. PKCE uses 
+  a dynamically created cryptographic secret key for each login request, preventing 
+  hackers from intercepting authorization codes.
+
+--------------------------------------------------------------------------------
+3.6 WHAT IS THE STUDENT ID + OTP (PASSWORDLESS) FLOW?
+--------------------------------------------------------------------------------
+- Why not regular passwords for students?:
+  Students frequently forget passwords, share credentials with friends to take tests 
+  for them, or use weak passwords.
+- How our flow works:
+  1. Student enters their unique University Registration ID (e.g., `STU-2024-8891`).
+  2. The system checks the database and sends a 6-digit one-time passkey (OTP) 
+     valid for 5 minutes.
+  3. Student enters the passkey, the backend validates it, and issues a secure 
+     JSON Web Token (JWT).
+  4. No student password is ever stored or stolen!
+
+--------------------------------------------------------------------------------
+3.7 WHAT IS MULTI-TENANCY IN SAAS?
+--------------------------------------------------------------------------------
+- What is a "Tenant"?: In cloud software, a tenant is an organization (in our case, 
+  a specific college or university, such as MIT Pune or COEP Tech).
+- Multi-Tenancy means: One single installation of PlacePrep Secure serves hundreds 
+  of colleges, but with strict data walls. College A's teachers can NEVER see 
+  College B's students or questions.
+- Frontend role: The frontend stores the `tenantId` in Redux and automatically 
+  attaches it as an `X-Tenant-Id` HTTP header on all API calls.
+
+--------------------------------------------------------------------------------
+3.8 WHAT IS ROLE-BASED ACCESS CONTROL (RBAC)?
+--------------------------------------------------------------------------------
+- RBAC is a security model where permissions are assigned to specific roles rather 
+  than individual users.
+- In PlacePrep Secure, we have 4 distinct roles defined in `src/config/roles.js`:
+  1. `STUDENT`: Can take exams, play cognitive games, view personal AI study plans.
+  2. `TEACHER`: Can approve AI-generated drafts, monitor real-time proctoring alerts, 
+     and view topic-level skill heatmaps.
+  3. `INSTITUTION_ADMIN`: Can bulk upload 5,000 students via CSV, invite faculty, 
+     and assign company tracks to departments.
+  4. `SUPER_ADMIN`: PlacePrep platform owners who provision new college tenants.
+
+--------------------------------------------------------------------------------
+3.9 WHAT IS TAILWIND CSS?
+--------------------------------------------------------------------------------
+- What it is: A utility-first CSS framework.
+- The Problem without Tailwind: Traditional CSS required creating thousands of 
+  custom class names across separate `.css` files (`.card-header-button-active`), 
+  leading to huge files and naming conflicts.
+- How Tailwind Works: It provides utility classes directly in your JSX (e.g., 
+  `bg-indigo-600 text-white rounded-xl shadow-lg p-4 flex items-center`). It compiles 
+  only the CSS you actually use, resulting in tiny, ultra-fast stylesheets.
+
+--------------------------------------------------------------------------------
+3.10 STORAGE: LOCALSTORAGE VS SESSIONSTORAGE VS REDUX MEMORY
+--------------------------------------------------------------------------------
+- Redux Memory: Holds data in computer RAM while the tab is open. If you press F5 
+  (refresh), RAM is cleared!
+- LocalStorage: Saves data in the browser permanently until explicitly deleted. 
+  Even if you close the browser and come back tomorrow, the data stays.
+- SessionStorage: Saves data only for the current browser tab. If you close the tab, 
+  it is deleted.
+- How we use them in `src/utils/tokenStorage.js`:
+  We persist the user profile and JWT access token to storage so when a user refreshes 
+  their browser mid-exam or mid-dashboard, they don't get abruptly logged out.
+
+
+================================================================================
+4. DETAILED FILE-BY-FILE WALKTHROUGH (HOW TO READ THE CODE)
+================================================================================
+
+Here is an architectural map of every file created in `src/`:
+
+src/
+├── api/
+│   ├── client.js
+│   │   PURPOSE: The centralized HTTP fetch client.
+│   │   WHY WE USE IT: Instead of writing `fetch('http://localhost:5000/api/...')` 
+│   │   all over our app, this wrapper automatically injects the `Authorization: Bearer <token>` 
+│   │   header and `X-Tenant-Id` header on every request. If the server replies with 
+│   │   401 Unauthorized, it automatically triggers a logout and clears tokens.
+│   │
+│   └── authApi.js
+│       PURPOSE: API service for authentication calls.
+│       WHY WE USE IT: Contains methods: `requestStudentOtp(studentId)`, 
+│       `verifyStudentOtp(studentId, otp)`, and `verifyEntraToken(account, idToken)`.
+│       Includes seed data (`MOCK_USERS`) so you can test all 4 roles locally even 
+│       before the backend database is running.
+│
+├── config/
+│   ├── roles.js
+│   │   PURPOSE: The single source of truth for user roles.
+│   │   WHY WE USE IT: Defines `ROLES.STUDENT`, `ROLES.TEACHER`, `ROLES.INSTITUTION_ADMIN`, 
+│   │   and `ROLES.SUPER_ADMIN`. Prevents spelling mistakes in role strings.
+│   │
+│   └── authConfig.js
+│       PURPOSE: Microsoft Entra ID (MSAL) configuration.
+│       WHY WE USE IT: Configures Azure Client ID, Authority URL, Scopes (`User.Read`, 
+│       `openid`, `profile`, `email`), and PKCE settings for institutional SSO.
+│
+├── features/
+│   └── auth/
+│       ├── authSlice.js
+│       │   PURPOSE: The Redux state slice for authentication.
+│       │   WHY WE USE IT: Tracks `user`, `token`, `isAuthenticated`, `isLoading`, 
+│       │   `error`, and `otpState`. Exports actions (`authSuccess`, `authFailure`, 
+│       │   `logout`, `switchRoleDev`) and selectors (`selectCurrentUser`, `selectCurrentRole`).
+│       │
+│       ├── authThunks.js
+│       │   PURPOSE: Async action handlers for authentication.
+│       │   WHY WE USE IT: Coordinates network calls with Redux updates. For example, 
+│       │   `verifyStudentOtp` calls the API, waits for the JWT token, and dispatches 
+│       │   `authSuccess` to save the student in the Redux store.
+│       │
+│       ├── authHooks.js
+│       │   PURPOSE: Custom `useAuth` React hook.
+│       │   WHY WE USE IT: Gives any React component a one-line way to get auth information:
+│       │   `const { user, role, isStudent, logout } = useAuth();`
+│       │   Components do not need to know about Redux dispatches directly.
+│       │
+│       └── msalInstance.js
+│           PURPOSE: Singleton instance of Microsoft MSAL `PublicClientApplication`.
+│           WHY WE USE IT: Manages the browser popup and redirect flows with Microsoft Entra ID.
+│
+├── components/
+│   ├── guards/
+│   │   ├── ProtectedRoute.jsx
+│   │   │   PURPOSE: Bouncer #1 — Authentication check.
+│   │   │   WHY WE USE IT: If visitor is NOT logged in, redirects them to `/login`.
+│   │   │
+│   │   ├── RoleGuard.jsx
+│   │   │   PURPOSE: Bouncer #2 — Role check (RBAC).
+│   │   │   WHY WE USE IT: If user is logged in as a STUDENT but tries to enter 
+│   │   │   `/teacher` or `/admin`, redirects them to `/unauthorized` (403 Forbidden).
+│   │   │
+│   │   └── PublicOnlyRoute.jsx
+│   │       PURPOSE: Bouncer #3 — Guest-only check.
+│   │       WHY WE USE IT: If an already-authenticated user tries to visit `/login`, 
+│   │       redirects them straight to their dashboard.
+│   │
+│   ├── common/
+│   │   ├── Navbar.jsx
+│   │   │   PURPOSE: Top navigation bar.
+│   │   │   WHY WE USE IT: Shows the PlacePrep logo, College Tenant badge, colorful 
+│   │   │   Role pill, Candidate Profile avatar/name, and Logout button.
+│   │   │
+│   │   ├── Sidebar.jsx
+│   │   │   PURPOSE: Left-hand navigation menu.
+│   │   │   WHY WE USE IT: Dynamically changes links based on role:
+│   │   │     - Student: Assessments, Cognitive Games, AI Study Plan, Leaderboard.
+│   │   │     - Teacher: AI Draft Reviews, Live Proctoring, Analytics Heatmap.
+│   │   │     - Admin: Bulk CSV, Faculty Access, Department Readiness.
+│   │   │     - Super Admin: Tenants, System Config.
+│   │   │
+│   │   ├── LoadingSpinner.jsx
+│   │   │   PURPOSE: Reusable loading animation with custom text.
+│   │   │
+│   │   └── RoleSwitcherDev.jsx
+│   │       PURPOSE: Interactive Developer Sandbox widget.
+│   │       WHY WE USE IT: Fixed at the bottom-right corner during development. 
+│   │       Lets anyone click "Student", "Faculty", "Admin", or "Super Admin" to 
+│   │       instantly test and verify route guard behavior in seconds.
+│   │
+│   └── layout/
+│       ├── AppLayout.jsx
+│       │   PURPOSE: Shell for authenticated screens (Navbar + Sidebar + Main content).
+│       │
+│       └── AuthLayout.jsx
+│           PURPOSE: Distraction-free shell for Login and Unauthorized pages.
+│
+├── pages/
+│   ├── HomePage.jsx
+│   │   PURPOSE: Public landing page showcasing the 4 core pillars of PlacePrep Secure.
+│   │
+│   ├── auth/
+│   │   ├── LoginPage.jsx
+│   │   │   PURPOSE: Unified login screen featuring:
+│   │   │     - Tab 1: Student ID + OTP passwordless flow.
+│   │   │     - Tab 2: Institutional Microsoft Entra ID SSO button.
+│   │   │     - Quick role simulator buttons.
+│   │   │
+│   │   └── UnauthorizedPage.jsx
+│   │       PURPOSE: 403 Access Denied screen showing the exact attempted URL, 
+│   │       current role, required role, and a "Return to Dashboard" button.
+│   │
+│   ├── dashboards/
+│   │   ├── StudentDashboard.jsx    -> Student portal with test schedule and anti-cheat pill.
+│   │   ├── TeacherDashboard.jsx    -> Faculty console with AI Draft review & proctor alert.
+│   │   ├── AdminDashboard.jsx      -> College Admin panel with Bulk CSV and Department metrics.
+│   │   └── SuperAdminDashboard.jsx -> Super Admin multi-tenant overview table.
+│   │
+│   └── NotFoundPage.jsx
+│       PURPOSE: 404 handler for non-existent URLs.
+│
+├── routes/
+│   ├── paths.js
+│   │   PURPOSE: Dictionary of all URL route strings in the app.
+│   │
+│   └── AppRoutes.jsx
+│       PURPOSE: Master route table connecting all layouts, guards, and pages.
+│
+├── store/
+│   ├── index.js
+│   │   PURPOSE: Configured Redux store with serializable middleware checks.
+│   │
+│   └── rootReducer.js
+│       PURPOSE: Combined reducers (currently `auth`, ready for future phase slices).
+│
+└── utils/
+    ├── roleUtils.js
+    │   PURPOSE: Helper functions: `getDefaultRouteForRole(role)` and `isRoleAuthorized()`.
+    │
+    └── tokenStorage.js
+        PURPOSE: Safe browser storage helper for JWT tokens and user metadata.
+
+
+================================================================================
+5. HOW AUTHENTICATION & SECURITY FLOW WORKS (STEP-BY-STEP DATA FLOW)
+================================================================================
+
+Let's trace what happens under the hood during a user interaction:
+
+SCENARIO A: A STUDENT LOGS IN VIA STUDENT ID + OTP
+--------------------------------------------------------------------------------
+1. Student opens `http://localhost:5173/login`.
+2. Student enters Registration ID: `STU-2024-8891` and clicks "Request One-Time Passkey".
+3. `LoginPage.jsx` calls `requestOtp("STU-2024-8891")` from `useAuth.js`.
+4. `authThunks.js` triggers `authApi.requestStudentOtp()`:
+   - Sets Redux state: `otpState.sent = true`, `otpState.studentId = "STU-2024-8891"`.
+   - The UI automatically flips to Step 2: "Enter 6-Digit Passkey".
+5. Student inputs `123456` and clicks "Verify & Enter Exam Portal".
+6. `authThunks.js` dispatches `authSuccess({ user, token, authMethod: 'student_otp' })`:
+   - Redux updates: `isAuthenticated = true`, `user = { name: 'Aarav Sharma', role: 'STUDENT', ... }`.
+   - `tokenStorage.js` saves the JWT token to browser storage.
+7. `LoginPage.jsx` reads `getDefaultRouteForRole('STUDENT')` and navigates to `/student/dashboard`.
+8. `ProtectedRoute` and `RoleGuard` verify the user is a `STUDENT` and grant access.
+
+
+SCENARIO B: A STUDENT ATTEMPTS TO HACK / ACCESS THE ADMIN DASHBOARD
+--------------------------------------------------------------------------------
+1. While logged in as a STUDENT, the student types `/admin/dashboard` in the browser URL bar.
+2. React Router hits the route definition:
+   `<Route element={<RoleGuard allowedRoles={[ROLES.INSTITUTION_ADMIN]} />}>`
+3. `RoleGuard.jsx` reads `role` from Redux (`STUDENT`).
+4. `RoleGuard` notices `allowedRoles` only includes `INSTITUTION_ADMIN`.
+5. Access is DENIED immediately!
+6. `RoleGuard` redirects the student to `/unauthorized`, attaching:
+   - `attemptedPath: '/admin/dashboard'`
+   - `currentRole: 'STUDENT'`
+   - `requiredRoles: ['INSTITUTION_ADMIN']`
+7. `UnauthorizedPage.jsx` renders a clean 403 Forbidden screen explaining the security 
+   boundary and provides a "Return to My Dashboard" button that safely takes the student 
+   back to `/student/dashboard`.
+
+
+SCENARIO C: A FACULTY MEMBER SIGNS IN VIA MICROSOFT ENTRA ID
+--------------------------------------------------------------------------------
+1. Faculty visits `/login` and clicks the "Faculty & Admin (Entra ID)" tab.
+2. Clicks "Sign in with Microsoft Entra ID".
+3. `msalInstance.js` opens Microsoft's secure login popup using OAuth2 + PKCE.
+4. Microsoft authenticates the faculty member and returns an ID Token and Access Token.
+5. `authThunks.js` dispatches `authSuccess({ user, token, authMethod: 'entra' })`.
+6. User is redirected to `/teacher/dashboard`.
+7. The top `Navbar` immediately displays their Faculty badge and department.
+
+
+================================================================================
+6. HOW TO RUN, TEST, AND VERIFY PHASE 1 ON YOUR MACHINE
+================================================================================
+
+To run and test this project locally, open a terminal in `p:\Projects\placement-react-web` 
+and follow these simple steps:
+
+STEP 1: START THE LOCAL DEVELOPMENT SERVER
+  Command:
+    npm run dev
+  Output:
+    VITE v8.x  ready in ~200 ms
+    ➜  Local:   http://localhost:5173/
+
+STEP 2: TEST HOME PAGE & NAVIGATION
+  - Open `http://localhost:5173/` in your browser.
+  - Notice the modern dark landing page describing the 4 automated pillars of PlacePrep Secure.
+  - Click "Candidate & Faculty Sign In" or "Student Login (OTP)".
+
+STEP 3: TEST STUDENT ID + OTP LOGIN
+  - On the login page, enter Student ID: `STU-2024-8891`
+  - Click "Request One-Time Passkey".
+  - You will see a green banner indicating passkey sent (test passkey: `123456`).
+  - Enter `123456` and click "Verify & Enter Exam Portal".
+  - You are redirected to `/student/dashboard`.
+  - Notice:
+    * The Navbar shows "Student" badge, "Aarav Sharma", and "MIT Academy of Engineering".
+    * The Sidebar shows Student links: Overview, Assessments, Cognitive Games, AI Study Plan.
+    * The Anti-Cheat indicator shows "Secure Proctoring Environment: Active".
+
+STEP 4: TEST ROLE-BASED ACCESS CONTROL (SECURITY GUARDS)
+  - Look at the bottom-right corner: notice the floating "Phase 1 RBAC Dev Sandbox" widget.
+  - Under "Test Security Boundary Violation", click "Go to /admin".
+  - You will immediately see the 403 — Access Denied screen!
+  - It clearly states that your current role (STUDENT) is not permitted to access 
+    `/admin/dashboard` (which requires `INSTITUTION_ADMIN`).
+  - Click "Return to My Dashboard" to return safely to `/student/dashboard`.
+
+STEP 5: TEST INSTANT ROLE SWITCHING
+  - In the bottom-right Dev Sandbox, click "Faculty View" (Dr. Sunita Raman).
+    * You are navigated to `/teacher/dashboard`.
+    * The Sidebar updates with Faculty links (AI Draft Reviews, Live Proctoring, Heatmap).
+  - In the Dev Sandbox, click "Admin (HOD)" (Prof. Rajesh Kulkarni).
+    * You are navigated to `/admin/dashboard` (Bulk CSV upload, Department Readiness).
+  - In the Dev Sandbox, click "Super Admin" (Nikita Bharti).
+    * You are navigated to `/super-admin/dashboard` (Multi-tenant provisioning).
+
+STEP 6: TEST SESSION PERSISTENCE
+  - While logged into any dashboard, press F5 (refresh page).
+  - You stay logged in! You are not kicked out to login because `tokenStorage.js` 
+    persists your authenticated session.
+
+STEP 7: TEST LOGOUT
+  - Click the Sign Out icon in the top right Navbar.
+  - Your session and tokens are purged, and you are redirected to `/login`.
+  - Now try navigating directly to `/student/dashboard` in the address bar.
+  - `ProtectedRoute` intercepts the request and forces you back to `/login`.
+
+STEP 8: RUN CODE QUALITY VERIFICATION
+  - Run `npm run lint` in the terminal: should output 0 errors.
+  - Run `npm run build` in the terminal: should build production assets in `dist/` cleanly.
+
+
+================================================================================
+7. SUMMARY & HANDOVER FOR PHASE 2
+================================================================================
+
+Phase 1 establishes the production architecture of PlacePrep Secure:
+  [OK] Redux store initialized with scalable root reducer architecture.
+  [OK] Auth state management with dual-mode Entra ID and Student OTP authentication.
+  [OK] Zero-Trust Role-Based Route Guards (`ProtectedRoute`, `RoleGuard`, `PublicOnlyRoute`).
+  [OK] Multi-tenant context handling (`tenantId`, `tenantName`).
+  [OK] Full compliance with team task division and Capstone specifications.
+
+Teammate Handover Readiness:
+  - Muwahid (UI/UX): Can now design and polish the detailed test taking interfaces, 
+    Monaco split-screen layouts, and simulation modals inside the existing route shell.
+  - Kaif (Backend): The Express JWT validation middleware and Prisma identity tables 
+    can directly connect with `src/api/authApi.js` endpoints.
+  - Phase 2 (Assessment Engine): Ready to introduce `examSlice.js` and Monaco Editor.
+
+================================================================================
+End of Phase 1 Documentation File.
+================================================================================
