@@ -23,6 +23,10 @@ import TeacherDashboard from '../pages/dashboards/TeacherDashboard'
 import AdminDashboard from '../pages/dashboards/AdminDashboard'
 import SuperAdminDashboard from '../pages/dashboards/SuperAdminDashboard'
 
+// Phase 2 Assessment Engine Pages
+import AssessmentsListPage from '../pages/assessment/AssessmentsListPage'
+import AssessmentPlayerPage from '../pages/assessment/AssessmentPlayerPage'
+
 // Phase Handover Placeholder for upcoming sub-routes
 const UpcomingPhasePlaceholder = ({ phase, title, roleName }) => (
   <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xs text-center space-y-3">
@@ -59,6 +63,15 @@ export const AppRoutes = () => {
 
       {/* Protected Authenticated Zone */}
       <Route element={<ProtectedRoute />}>
+        {/* Full-Screen Distraction-Free Assessment Engine (Student Only) */}
+        <Route element={<RoleGuard allowedRoles={[ROLES.STUDENT]} />}>
+          <Route
+            path={ROUTES.STUDENT.ASSESSMENT_PLAYER}
+            element={<AssessmentPlayerPage />}
+          />
+        </Route>
+
+        {/* Standard Application Shell with Navbar & Sidebar */}
         <Route element={<AppLayout />}>
           {/* =========================================
               STUDENT ZONE (Role: STUDENT)
@@ -66,16 +79,7 @@ export const AppRoutes = () => {
           <Route element={<RoleGuard allowedRoles={[ROLES.STUDENT]} />}>
             <Route path={ROUTES.STUDENT.ROOT} element={<Navigate to={ROUTES.STUDENT.DASHBOARD} replace />} />
             <Route path={ROUTES.STUDENT.DASHBOARD} element={<StudentDashboard />} />
-            <Route
-              path={ROUTES.STUDENT.ASSESSMENTS}
-              element={
-                <UpcomingPhasePlaceholder
-                  phase="Phase 2"
-                  title="Multi-Format Assessment Engine"
-                  roleName="Student"
-                />
-              }
-            />
+            <Route path={ROUTES.STUDENT.ASSESSMENTS} element={<AssessmentsListPage />} />
             <Route
               path={ROUTES.STUDENT.GAMES}
               element={

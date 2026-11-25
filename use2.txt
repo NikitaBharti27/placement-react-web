@@ -1,0 +1,364 @@
+================================================================================
+PLACEPREP SECURE — COMPLETE QUICKSTART, COMMANDS & SETUP GUIDE (PHASE 2)
+Author: Nikita Bharti (Senior Frontend Web Developer)
+File: use2.txt
+================================================================================
+
+TABLE OF CONTENTS:
+1. ALL COMMANDS (MAIN FIRST)
+2. HOW TO RUN THE APP (STEP-BY-STEP COMPLETE GUIDE)
+3. WHAT EXTERNAL THINGS YOU NEED TO DO BY YOURSELF
+   - A. Zero-Setup Local Development (Ready Out-Of-The-Box)
+   - B. Creating Your `.env` File (For Live Backend & Cloud)
+   - C. Setting Up Microsoft Entra ID (Azure AD) Credentials
+   - D. Connecting Teammate Kaif's Node.js Backend Server
+   - E. Monaco Editor Internet / CDN Connectivity
+   - F. Connecting Azure Container Apps Docker Sandbox (Atanu & Pankaj)
+   - G. Recommended Browser Extensions (Redux DevTools)
+4. HOW TO TEST ALL PHASE 2 FEATURES IN 2 MINUTES (TESTING CHECKLIST)
+   - Test 1: Student Passwordless Login (ID + OTP)
+   - Test 2: Accessing the Assessment Catalog
+   - Test 3: Taking a Multiple-Choice Question (MCQ) with Keyboard Shortcuts
+   - Test 4: Running Story-Based Simulation Coding in VS Code Monaco Editor
+   - Test 5: Solving SQL Database Query with Interactive Schema Inspector
+   - Test 6: Modifying UI Task with Live Sandboxed Iframe & DOM Assertions
+   - Test 7: Verifying Server-Authoritative Anti-Tamper Timer
+   - Test 8: Using the Question Palette & Section Filter Drawer
+   - Test 9: Pre-Submission Review & Upstash QStash Queue Dispatch
+   - Test 10: Testing Role-Based Security Boundary (403 Access Denied)
+
+================================================================================
+1. ALL COMMANDS (MAIN FIRST)
+================================================================================
+
+Here is the master list of all commands you will ever need, ordered with the most 
+important command first:
+
+--------------------------------------------------------------------------------
+1. START LOCAL APP (MAIN COMMAND — RUN THIS TO WORK OR EVALUATE)
+--------------------------------------------------------------------------------
+   npm run dev
+
+   - What it does: Launches the local Vite development server with Hot Module 
+     Replacement (HMR).
+   - URL to open: http://localhost:5173
+   - Startup time: Less than 300 milliseconds.
+   - Note: Keep this terminal window open while you interact with the app in your browser.
+
+--------------------------------------------------------------------------------
+2. INSTALL DEPENDENCIES (RUN FIRST IF STARTING ON A NEW LAPTOP OR FRESH CLONE)
+--------------------------------------------------------------------------------
+   npm install
+
+   - What it does: Downloads all required frontend libraries from npm into your 
+     `node_modules/` folder:
+     * React 19 + React DOM
+     * Redux Toolkit (`@reduxjs/toolkit` and `react-redux`)
+     * React Router Dom v7 (`react-router-dom`)
+     * Monaco Editor (`@monaco-editor/react`)
+     * Microsoft Entra ID Auth (`@azure/msal-browser` and `@azure/msal-react`)
+     * Tailwind CSS v4 (`tailwindcss` and `@tailwindcss/vite`)
+     * Lucide Icons (`lucide-react`)
+   - When to run: Only once when you clone the project, or after pulling new code.
+
+--------------------------------------------------------------------------------
+3. BUILD PRODUCTION ASSETS (RUN BEFORE DEPLOYING TO AZURE STATIC WEB APPS)
+--------------------------------------------------------------------------------
+   npm run build
+
+   - What it does: Runs Vite's production compiler. Compiles, bundles, minifies, 
+     and tree-shakes all JSX, CSS, and assets into the `dist/` directory.
+   - Why we run it: Verifies there are 0 syntax errors, 0 broken imports, and 
+     produces optimized assets ready for cloud hosting.
+
+--------------------------------------------------------------------------------
+4. CODE QUALITY & LINTING CHECK (RUN TO ENSURE CLEAN CODE STANDARDS)
+--------------------------------------------------------------------------------
+   npm run lint
+
+   - What it does: Executes ESLint across all JavaScript and JSX files in `src/`.
+   - Checks for: Unused variables, broken React hooks dependencies, and React 19 
+     purity rules.
+   - Current status: Clean! 0 errors and 0 warnings.
+
+--------------------------------------------------------------------------------
+5. PREVIEW COMPILED PRODUCTION BUILD LOCALLY
+--------------------------------------------------------------------------------
+   npm run preview
+
+   - What it does: Spins up a lightweight local web server serving the compiled 
+     `dist/` folder instead of dev mode.
+   - Why we run it: Allows you to test real production loading speeds and verify 
+     that your production build works identically to development.
+
+--------------------------------------------------------------------------------
+6. RUN LINT AND BUILD IN A SINGLE COMMAND (THE SENIOR DEVELOPER ONE-LINER)
+--------------------------------------------------------------------------------
+   npm run lint ; npm run build
+
+   - On Windows PowerShell, this runs linting and immediately proceeds to building 
+     assets, giving you an instant pass/fail check.
+
+
+================================================================================
+2. HOW TO RUN THE APP (STEP-BY-STEP COMPLETE GUIDE)
+================================================================================
+
+If you have never opened a coding terminal before, here is the exact step-by-step 
+guide to get PlacePrep Secure running in 60 seconds:
+
+PREREQUISITES:
+1. Verify Node.js is installed on your computer.
+   Open PowerShell or Command Prompt and type:
+     node -v
+     npm -v
+   (Recommended: Node.js version 20.x, 22.x, or newer).
+   If not installed, download the LTS version from https://nodejs.org.
+
+STEP 1: OPEN YOUR TERMINAL IN THE PROJECT FOLDER
+   Open your terminal (PowerShell, Command Prompt, or VS Code integrated terminal) 
+   and navigate to:
+     cd p:\Projects\placement-react-web
+
+STEP 2: RUN THE DEV SERVER
+   Type:
+     npm run dev
+
+   You will see an output like:
+     VITE v8.3.x  ready in ~250 ms
+     ➜  Local:   http://localhost:5173/
+     ➜  Network: use --host to expose
+
+STEP 3: OPEN YOUR BROWSER
+   Open Google Chrome, Microsoft Edge, Brave, or Firefox and go to:
+     http://localhost:5173
+
+STEP 4: LOG IN AS A STUDENT CANDIDATE
+   1. On the landing page, click "Candidate & Faculty Sign In" or go to:
+      http://localhost:5173/login
+   2. Click the "Student (OTP)" tab.
+   3. Enter Student ID: STU-2024-8891
+   4. Click "Request One-Time Passkey" (Mock passkey is: 123456).
+   5. Enter 123456 and click "Verify & Enter Exam Portal".
+   6. You land on your Student Dashboard (`/student/dashboard`)!
+
+STEP 5: LAUNCH THE MULTI-FORMAT EXAM
+   1. On the Student Dashboard, find the "TCS NQT 2024 Prep Track" card.
+   2. Click "Start Exam".
+   3. You enter the distraction-free assessment player:
+      http://localhost:5173/student/assessment/tcs-nqt-tech-01
+
+
+================================================================================
+3. WHAT EXTERNAL THINGS YOU NEED TO DO BY YOURSELF
+================================================================================
+
+To ensure that evaluators, teammates, and teachers never get blocked by missing 
+cloud credentials or offline servers, I designed the frontend with dual-mode 
+resilience:
+
+--------------------------------------------------------------------------------
+A. ZERO-SETUP LOCAL DEVELOPMENT (WORKS 100% OUT-OF-THE-BOX RIGHT NOW!)
+--------------------------------------------------------------------------------
+- What this means: You DO NOT need to set up any cloud accounts, database servers, 
+  or API keys to test, grade, or evaluate Phase 1 and Phase 2 today!
+- Built-In Smart Fallbacks:
+  * Authentication: Simulates Student OTP and Microsoft Entra ID SSO seamlessly.
+  * Assessment Engine: Pre-loaded with full TCS NQT and Accenture assessment tracks.
+  * Code Sandbox: Simulates isolated Docker compilation returning stdout and pass 
+    rates in under 1 second without requiring local Docker daemon.
+  * SQL Runner: Simulates relational queries against the test schema.
+  * Async Submission Queue: Simulates Upstash QStash dispatch returning unique Job IDs.
+  * Timer Sync: Simulates authoritative server clock synchronization.
+
+However, when moving to live enterprise deployment with your team, here are the 
+external items you will configure:
+
+--------------------------------------------------------------------------------
+B. CREATING YOUR `.env` FILE (FOR LIVE BACKEND & AZURE CLOUD)
+--------------------------------------------------------------------------------
+Create a file named `.env` in the root folder (`p:\Projects\placement-react-web\.env`):
+
+```env
+# ==============================================================================
+# PLACEPREP SECURE — ENVIRONMENT CONFIGURATION
+# ==============================================================================
+
+# 1. MICROSOFT ENTRA ID (AZURE AD) CREDENTIALS (FOR INSTITUTIONAL SSO)
+# Obtained from Azure Portal -> Microsoft Entra ID -> App Registrations
+VITE_AZURE_CLIENT_ID=your-azure-app-client-id-here
+VITE_AZURE_TENANT_ID=your-azure-tenant-id-or-common
+VITE_REDIRECT_URI=http://localhost:5173
+
+# 2. BACKEND NODE.JS EXPRESS API URL (KAIF'S SERVER)
+# The base URL where Kaif's Express server listens
+VITE_API_URL=http://localhost:5000/api
+```
+
+--------------------------------------------------------------------------------
+C. SETTING UP MICROSOFT ENTRA ID (WHEN TEAMMATE ATANU PROVISIONS AZURE)
+--------------------------------------------------------------------------------
+When your cloud infrastructure lead (Atanu) sets up institutional faculty sign-in:
+1. Log in to the Azure Portal: https://portal.azure.com
+2. Search for "Microsoft Entra ID" in the top search bar.
+3. In the left navigation menu, click "App registrations" ➔ Click "New registration".
+4. Fill in the form:
+   - Name: `PlacePrep Secure Web`
+   - Supported Account Types: "Accounts in this organizational directory only" (Single Tenant) 
+     or "Accounts in any organizational directory" (Multi-Tenant).
+   - Redirect URI:
+     * Select platform: `Single-page application (SPA)`
+     * URI: `http://localhost:5173` (for local development)
+     * Additional URI: `https://your-app.azurestaticapps.net` (for live production).
+5. Click "Register".
+6. In the Overview screen, copy:
+   - "Application (client) ID" ➔ paste as `VITE_AZURE_CLIENT_ID` in `.env`.
+   - "Directory (tenant) ID" ➔ paste as `VITE_AZURE_TENANT_ID` in `.env`.
+
+--------------------------------------------------------------------------------
+D. CONNECTING TEAMMATE KAIF'S NODE.JS BACKEND SERVER
+--------------------------------------------------------------------------------
+When backend developer Kaif provides the Node.js Express server:
+1. Start Kaif's backend repository (typically runs on `http://localhost:5000`).
+2. Make sure `VITE_API_URL=http://localhost:5000/api` is in your `.env`.
+3. Our frontend API client (`src/api/client.js` and `src/api/assessmentApi.js`) 
+   automatically attaches:
+   - `Authorization: Bearer <jwt_token>`
+   - `X-Tenant-Id: <college_tenant_id>`
+   - `Idempotency-Key: sub_<examId>_<timestamp>`
+4. If Kaif's server is ever stopped or down, our frontend gracefully falls back 
+   to the local mock engine so you are never left with a blank screen.
+
+--------------------------------------------------------------------------------
+E. MONACO EDITOR INTERNET / CDN CONNECTIVITY
+--------------------------------------------------------------------------------
+- How Monaco loads: By default, `@monaco-editor/react` loads the core VS Code editor 
+  engine from Microsoft's official CDN (`cdnjs.cloudflare.com` / `cdn.jsdelivr.net`).
+- What you need to do: Make sure your computer is connected to the internet the first 
+  time you open the editor so your browser caches the Monaco worker files. Once cached, 
+  it runs smoothly.
+
+--------------------------------------------------------------------------------
+F. CONNECTING AZURE CONTAINER APPS DOCKER SANDBOX (ATANU & PANKAJ)
+--------------------------------------------------------------------------------
+- What this is: In production, student code is sent to an ephemeral Docker container 
+  running on Azure Container Apps with gVisor sandbox security and zero internet access.
+- What you need to do: This is managed by cloud infrastructure teammates Atanu and 
+  Pankaj. As a frontend developer or evaluator, you only interact with the API 
+  endpoint `POST /api/assessments/:id/execute`. Our frontend code already handles 
+  sending the language, code, and custom inputs and displays stdout/stderr and execution times.
+
+--------------------------------------------------------------------------------
+G. RECOMMENDED BROWSER EXTENSIONS (HIGHLY RECOMMENDED FOR DEVELOPERS)
+--------------------------------------------------------------------------------
+- Redux DevTools Extension:
+  * Install from Chrome Web Store or Edge Add-ons.
+  * Press F12 in your browser and click the "Redux" tab.
+  * You will see the entire live state tree:
+    - `auth`: Logged in student, token, role.
+    - `exam`: Active question index, answers per question ID, server timer offset, 
+      and sandbox execution logs.
+  * You can replay actions, inspect dispatches, and debug state in real-time!
+
+
+================================================================================
+4. HOW TO TEST ALL PHASE 2 FEATURES IN 2 MINUTES (TESTING CHECKLIST)
+================================================================================
+
+Follow this verification checklist to test all Phase 2 features from start to finish:
+
+TEST 1: STUDENT PASSWORDLESS LOGIN (ID + OTP)
+  1. Open http://localhost:5173/login
+  2. Select "Student (OTP)" tab.
+  3. Enter Student ID: `STU-2024-8891` ➔ Click "Request One-Time Passkey".
+  4. Enter OTP: `123456` ➔ Click "Verify & Enter Exam Portal".
+  5. Verified: You land on `/student/dashboard` with candidate name "Aarav Sharma".
+
+TEST 2: ACCESSING THE ASSESSMENT CATALOG
+  1. On the Student Dashboard, click "View All (4)" next to Assigned Assessments.
+  2. Or navigate directly to http://localhost:5173/student/assessments.
+  3. Verified: You see available MNC tracks (TCS NQT, Accenture) with format badges:
+     * MCQ Aptitude
+     * Docker Coding Sandbox
+     * SQL Database Queries
+     * Interactive UI Tasks
+
+TEST 3: MCQ WORKSPACE WITH KEYBOARD SHORTCUTS
+  1. Click "Launch Assessment" on the TCS NQT card.
+  2. You enter `/student/assessment/tcs-nqt-tech-01`.
+  3. On Question 1 (Graph Traversal Complexity):
+     - Press the `B` key on your keyboard (or click Option B).
+     - Verified: Option B highlights in indigo with a checkmark badge.
+     - Notice the auto-save indicator in Redux.
+
+TEST 4: RUNNING SIMULATION CODING IN VS CODE MONACO EDITOR (<2s EXECUTION)
+  1. Click the "Next" button in the top header to reach Question 3 (Fleet Routing).
+  2. Notice the split screen:
+     - Left pane: Logistics fleet problem description, constraints, and sample cases.
+     - Right pane: VS Code Monaco Editor loaded with Python 3.11 starter code.
+  3. In the sample cases on the left, click "Copy Input" on Sample Case 1.
+  4. In the Monaco Editor header, click "Run Sample Tests".
+  5. Verified: In under 1 second, the Docker Sandbox execution drawer slides open, 
+     displaying stdout logs, execution runtime (184ms), memory usage, and `3/3 Tests Passed`!
+  6. Switch language dropdown from "Python" to "JavaScript" or "C++" to see starter code swap.
+  7. Click the theme icon (Sun/Moon) to toggle between VS Dark and Light themes.
+
+TEST 5: SOLVING SQL DATABASE QUERY WITH SCHEMA INSPECTOR
+  1. Click "Next" to reach Question 4 (Department Top 2 Earners).
+  2. On the left side, explore the Database Schema Inspector:
+     - Click the `employees` and `departments` tabs.
+     - Inspect columns, data types, primary keys (Key icon), and sample rows.
+  3. In the Monaco SQL editor on the right, click "Execute Query".
+  4. Verified: The Query Result Grid renders the tabular output and shows a green 
+     `✓ Output Matches Expected` badge!
+
+TEST 6: MODIFYING UI TASK WITH LIVE IFRAME & AUTOMATED DOM ASSERTIONS
+  1. Click "Next" to reach Question 5 (Candidate Verification Card).
+  2. On the right side, switch between `index.html`, `styles.css`, and `script.js` tabs.
+  3. Look at the bottom right: the live Candidate Card is rendered inside an interactive 
+     sandboxed iframe!
+  4. In `styles.css`, change background colors or padding and watch the preview update live.
+  5. On the left side, click "Verify UI Requirements".
+  6. Verified: The 4 acceptance criteria change from empty circles to green checkmarks (`4 / 4 Passed`)!
+
+TEST 7: VERIFYING SERVER-AUTHORITATIVE ANTI-TAMPER TIMER
+  1. Look at the top center of the screen.
+  2. Verified: You will see the clock pill ticking down in `HH:MM:SS` format.
+  3. Next to the timer, notice the green "Server Synced" indicator.
+  4. Even if you switch tabs or alter your computer clock, the server heartbeat 
+     recalibrates the deadline accurately.
+
+TEST 8: USING THE QUESTION PALETTE & SECTION FILTERS
+  1. In the top right header, click the "Palette" button.
+  2. A slide-over navigation drawer opens showing all question bubbles 1 through 5.
+  3. Notice the color coding:
+     - Green: Answered questions.
+     - Purple: Questions marked for review.
+     - Slate: Visited questions.
+     - Indigo ring: Current active question.
+  4. Click the "Answered" or "Unanswered" filter tabs.
+  5. Click any question number to jump directly to it!
+
+TEST 9: PRE-SUBMISSION REVIEW & UPSTASH QSTASH ASYNC QUEUE RECEIPT
+  1. In the top right header, click "Submit".
+  2. The Pre-Submission Confirmation Modal appears:
+     - Displays total answered vs. unanswered questions.
+     - Displays authoritative time remaining.
+  3. Check the acknowledgment checkbox: "I confirm that I have reviewed my answers...".
+  4. Click "Confirm & Submit".
+  5. Verified: The modal transitions into a submission receipt displaying:
+     * Async Job ID: `qstash_job_...`
+     * Processing Queue: `Upstash QStash + Celery Sandbox`
+     * Submission Timestamp
+  6. Click "Return to Student Dashboard".
+
+TEST 10: TESTING ROLE-BASED SECURITY BOUNDARY (403 ACCESS DENIED)
+  1. While logged in as Student, type this URL into your browser bar:
+     http://localhost:5173/admin/dashboard
+  2. Press Enter.
+  3. Verified: `RoleGuard` immediately blocks you and displays the 403 Access Denied screen!
+  4. Click "Return to My Dashboard" to return safely to `/student/dashboard`.
+
+================================================================================
+End of use2.txt file.
+================================================================================

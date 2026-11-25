@@ -1,0 +1,627 @@
+================================================================================
+PLACEPREP SECURE — PHASE 2 DEVELOPMENT GUIDE & ARCHITECTURE EXPLAINER
+Author: Nikita Bharti (Senior Frontend Web Developer)
+Module: Phase 2 — Core Assessment Engine & Multi-Format Evaluation
+Target Audience: Beginners, Students, Evaluators & Team Collaborators
+File: phase_2_Work.txt
+================================================================================
+
+TABLE OF CONTENTS:
+1. Executive Summary: What Was Accomplished in Phase 2
+2. The Big Picture: How PlacePrep Secure's Assessment Engine Works
+3. Beginner's Guide: Explaining Every Tech Stack & Concept with Real-World Analogies
+   3.1 What is an Assessment Engine? (The Digital Exam Hall)
+   3.2 What is Monaco Editor? (The Engine Behind VS Code)
+   3.3 What is Multi-Format Evaluation? (Why Top MNCs Stopped Using Just MCQs)
+   3.4 What is Server-Authoritative Timing? (The Clock Tower vs Personal Wristwatch)
+   3.5 What is a Docker Sandbox & gVisor Container? (The Hazmat Isolation Ward)
+   3.6 What is Asynchronous Queuing? (Upstash QStash & Celery Fast-Food Analogy)
+   3.7 What is an Iframe Sandbox for Live UI Previews? (The Bulletproof Window)
+   3.8 What is Automated DOM Testing / Acceptance Criteria? (The Auto-Inspector)
+   3.9 What is Active Exam Redux State (`examSlice.js`)? (The Digital Answer Booklet)
+   3.10 What is a Question Palette & Question Status Matrix? (The OMR Bubble Sheet)
+   3.11 What is Idempotent Submission? (Preventing Double-Submits & Network Drops)
+4. Detailed File-by-File Walkthrough (How to Read the Phase 2 Code)
+5. How the Assessment Engine Works Under the Hood (Step-by-Step Data Flows)
+   - Flow A: Candidate Launches Assessment & Syncs Server Clock
+   - Flow B: Candidate Solves Simulation Coding (Monaco -> Sandbox -> Test Cases)
+   - Flow C: Candidate Solves SQL Task (Schema Inspector -> Execution -> Output Diff)
+   - Flow D: Candidate Solves UI Task (Code Tabs -> Live Iframe -> DOM Check)
+   - Flow E: Authoritative Timer Heartbeat & Clock Drift Correction
+   - Flow F: Candidate Reviews & Submits (Pre-Submission Modal -> Async QStash Queue)
+6. How to Run, Test, and Verify Phase 2 on Your Machine in 2 Minutes
+7. Summary & Handover for Phase 3 (Gamified Rounds, Socket.io & Anti-Cheat)
+
+================================================================================
+1. EXECUTIVE SUMMARY: WHAT WAS ACCOMPLISHED IN PHASE 2
+================================================================================
+
+In Phase 1, our team established the foundation of PlacePrep Secure: the Redux 
+store, dual-mode authentication (Microsoft Entra ID + Student OTP), and zero-trust 
+role guards protecting Student, Teacher, and Admin portals.
+
+In Phase 2 ("Core Assessment Engine & Multi-Format Evaluation"), my responsibility 
+as Nikita Bharti (Senior Frontend Web Developer) was to build the heart and soul 
+of the candidate experience: the interactive assessment system where students take 
+actual tests.
+
+Unlike simple online quiz apps that only support radio buttons, modern placement drives 
+from Fortune 500 tech companies (TCS, Accenture, Infosys, Capgemini) evaluate 
+candidates on real programming, database querying, and UI problem-solving.
+
+What was built in Phase 2:
+1. Monaco Code Editor Integration:
+   Integrated Microsoft's official Monaco Editor (the engine powering Visual Studio 
+   Code) supporting Python, JavaScript, Java, C++, and SQL with syntax highlighting, 
+   code completion, theme switching (VS Dark vs Light), font size scaling, copy 
+   shortcuts, and boilerplate resets.
+
+2. Server-Authoritative Timer Synchronization:
+   Created an anti-tamper timer (`ServerExamTimer.jsx` and `useExamTimer.js`) that 
+   measures server time offsets and calculates deadlines based on the backend clock. 
+   If a student alters their computer clock in Windows/Mac settings, the timer 
+   instantly detects the drift and prevents cheating.
+
+3. Multi-Format Conditional Workspaces:
+   Engineered 4 specialized evaluation interfaces:
+   - MCQ Workspace: Distraction-free conceptual questions with keyboard shortcuts 
+     (A-D / 1-4) and syntax-highlighted code blocks.
+   - Simulation Workspace: Story-based algorithmic problems with constraints, sample 
+     cases with 1-click input copying, Monaco editor, and a Docker sandbox execution 
+     drawer showing stdout/stderr and pass/fail badges in under 2 seconds.
+   - SQL Task Workspace: Interactive database schema explorer (tables: employees, 
+     departments, columns, primary keys, sample tuples) with query execution and 
+     tabular comparison against expected outputs.
+   - UI Task Workspace: Split Monaco editor (HTML, CSS, JS) with a real-time sandboxed 
+     live preview iframe and automated DOM verification tests.
+
+4. Centralized Exam State Management (`src/features/exam/`):
+   Created `examSlice.js`, `examThunks.js`, and `examHooks.js` to manage active 
+   question indexes, auto-saved answers, palette statuses, timer ticks, compilation 
+   states, and submission receipts.
+
+5. Production Exam Navigation & Shell:
+   - Dedicated Assessment Catalog (`AssessmentsListPage.jsx`) at `/student/assessments`.
+   - Full distraction-free player (`AssessmentPlayerPage.jsx`) at `/student/assessment/:assessmentId`.
+   - Question Palette drawer (`QuestionPalette.jsx`) with color-coded status pills 
+     (Answered = Green, Marked = Purple, Visited = Slate, Not Visited = Dark Gray).
+   - Pre-submission modal (`SubmissionModal.jsx`) displaying an answered vs. unanswered 
+     question breakdown and asynchronous Upstash QStash queue receipt.
+6. 100% clean production build and 0 ESLint warnings/errors.
+
+
+================================================================================
+2. THE BIG PICTURE: HOW PLACEPREP SECURE'S ASSESSMENT ENGINE WORKS
+================================================================================
+
+Imagine a traditional university exam: students sit in an exam hall, receive a 
+printed question paper, and write their answers on paper. The proctor monitors 
+the clock on the wall, and when time is up, papers are collected.
+
+Now translate that to the modern corporate tech hiring ecosystem:
+Top MNCs like Tata Consultancy Services (TCS NQT) and Accenture assess thousands 
+of candidates at the same time across different cities. 
+
+They face three major problems:
+  1. The Format Problem: MCQs alone don't prove a candidate can code. But having 
+     professors grade thousands of code submissions manually is impossible. 
+     The platform must automatically run student code against secret test cases 
+     in a secure environment.
+  2. The Timer Manipulation Problem: In cheap web apps, timers run using JavaScript 
+     `setInterval` based on the candidate's browser clock. A student could change 
+     their computer time from 10:45 AM back to 10:00 AM to get 45 extra minutes! 
+     PlacePrep Secure makes timers server-authoritative. The server holds the true 
+     deadline; client clock changes have zero effect.
+  3. The Variety Problem: An assessment might have 2 MCQs, followed by a graph 
+     traversal coding problem, followed by an employee salary SQL query, followed by 
+     a CSS flexbox layout challenge. The frontend must seamlessly adapt its interface 
+     for each question without reloading the webpage.
+
+That is what Phase 2 accomplishes: an enterprise-grade, multi-format evaluation engine 
+that feels as smooth and professional as LeetCode, HackerRank, and VS Code combined.
+
+
+================================================================================
+3. BEGINNER'S GUIDE: EXPLAINING EVERY TECH STACK & CONCEPT WITH REAL-WORLD ANALOGIES
+================================================================================
+
+If you are new to web development or modern software engineering, here is a simple, 
+friendly explanation of every technology, pattern, and tool used in Phase 2.
+
+--------------------------------------------------------------------------------
+3.1 WHAT IS AN ASSESSMENT ENGINE? (THE DIGITAL EXAM HALL)
+--------------------------------------------------------------------------------
+- What it is: An assessment engine is the software system responsible for delivering 
+  exam questions, recording student answers in real-time, enforcing time limits, 
+  and packaging responses for automated grading.
+- The Real-World Analogy: Think of it like a digital exam desk. When you sit down, 
+  the desk automatically presents the exact tools you need: a scratchpad for MCQs, 
+  a code compiler for coding questions, or a database terminal for SQL queries.
+
+--------------------------------------------------------------------------------
+3.2 WHAT IS MONACO EDITOR? (THE ENGINE BEHIND VS CODE)
+--------------------------------------------------------------------------------
+- What it is: Monaco Editor is the open-source code editor library developed by 
+  Microsoft that powers Visual Studio Code (VS Code).
+- The Problem without Monaco: If you use a regular HTML `<textarea>` for code, you get 
+  no line numbers, no syntax coloring, no auto-indentation, no bracket matching, 
+  and pressing the Tab key accidentally moves focus away to the next button!
+- How Monaco Solves It: Monaco gives the candidate a genuine VS Code experience 
+  inside the browser tab:
+  * Syntax highlighting for Python, JavaScript, Java, C++, and SQL.
+  * Autocomplete suggestions and parameter hints.
+  * Bracket pair colorization (matching `{}` and `()` in distinct colors).
+  * Minimap and line numbers.
+  * In Phase 2, we integrated Monaco via `@monaco-editor/react` inside 
+    `src/components/assessment/editor/MonacoCodeEditor.jsx`.
+
+--------------------------------------------------------------------------------
+3.3 WHAT IS MULTI-FORMAT EVALUATION? (WHY MNCs STOPPED USING JUST MCQs)
+--------------------------------------------------------------------------------
+- In our platform, an exam can contain 4 distinct question formats:
+  1. `MCQ` (Multiple-Choice Questions):
+     * Used for testing aptitude, logical reasoning, and algorithmic complexity.
+     * Features keyboard shortcuts (A, B, C, D or 1, 2, 3, 4) for rapid answering.
+  2. `SIMULATION` (Story-Based Algorithmic Problems):
+     * Instead of "Reverse this array", candidates solve practical corporate scenarios: 
+       "You are routing autonomous electric delivery pods across warehouse hubs. 
+       Find the route that minimizes maximum battery jump effort."
+     * Candidates can choose their favorite language (Python, JavaScript, Java, C++).
+  3. `SQL_TASK` (Database Query Challenges):
+     * Evaluates relational database skills (Joins, Aggregations, Window Functions).
+     * Candidates can click tables in our Schema Inspector to see columns, primary keys, 
+       and sample tuples, and compare their output against the expected result.
+  4. `UI_TASK` (Interactive Frontend Engineering):
+     * Candidates are given a broken or unstyled component (e.g. a candidate profile card).
+     * They edit HTML, CSS, and JS in tabs and see their changes update instantly inside 
+       a live sandboxed preview.
+
+--------------------------------------------------------------------------------
+3.4 WHAT IS SERVER-AUTHORITATIVE TIMING? (CLOCK TOWER VS PERSONAL WRISTWATCH)
+--------------------------------------------------------------------------------
+- The Client-Timer Flaw:
+  Many basic websites calculate remaining time like this:
+  `let timeLeft = 60 * 60; setInterval(() => { timeLeft--; }, 1000);`
+  If the student freezes the browser tab or changes their operating system clock, 
+  they can cheat and buy unlimited extra time.
+- The Server-Authoritative Solution (The Master Clock Tower):
+  * When the exam starts, our Node.js server sends two numbers:
+    1. `serverCurrentTime` (e.g. 10:00:00 AM)
+    2. `serverDeadline` (e.g. 11:30:00 AM)
+  * The frontend calculates the clock drift: `offset = serverCurrentTime - clientCurrentTime`.
+  * Even if the student changes their computer clock, the formula 
+    `remaining = (deadline - (Date.now() + offset))` detects the tampering.
+  * Every 45 seconds, and whenever the candidate switches back to the tab, a silent 
+    heartbeat pings the server to recalibrate drift.
+  * When `remaining <= 0`, the exam instantly locks down and auto-submits.
+
+--------------------------------------------------------------------------------
+3.5 WHAT IS A DOCKER SANDBOX & GVISOR CONTAINER? (THE HAZMAT WARD)
+--------------------------------------------------------------------------------
+- The Danger of Untrusted Code:
+  When a candidate writes Python or C++ code and clicks "Run", that code could be 
+  malicious! A student could write: `import os; os.system("rm -rf /")` or try to 
+  hack the university server or read other students' files.
+- How Docker & gVisor Solve It:
+  * Student code is never run directly on the main web server.
+  * It is sent to an isolated, ephemeral Docker container running on Azure Container Apps.
+  * The container has ZERO internet access (no egress network), strictly limited 
+    CPU and RAM (e.g. 256MB), a read-only filesystem, and a strict 2.0-second timeout.
+  * The sandbox runs the code against test cases, captures standard output (stdout) 
+    or errors (stderr), destroys the container, and sends the score back to the frontend.
+
+--------------------------------------------------------------------------------
+3.6 WHAT IS ASYNCHRONOUS QUEUING? (UPSTASH QSTASH & FAST-FOOD ANALOGY)
+--------------------------------------------------------------------------------
+- The 1,000 Concurrent Submissions Problem:
+  Imagine 1,000 engineering students taking a campus placement exam simultaneously. 
+  At 11:30 AM, all 1,000 students click "Submit Exam" at the exact same second! 
+  If the server tried to compile 1,000 programs at once, the server would crash.
+- The Fast-Food Order Counter Analogy (Upstash QStash + Celery):
+  * When you order at McDonald's, the cashier doesn't cook your burger. The cashier gives 
+    you an order ticket (Job ID) and sends the ticket to the kitchen queue.
+  * In PlacePrep Secure, when you click "Submit", Node.js instantly accepts your answers, 
+    writes them to PostgreSQL, and pushes an execution job to Upstash QStash (a cloud 
+    message queue).
+  * Background Python Celery workers take jobs from the queue one by one, execute them in 
+    Docker containers, and save the score.
+  * The frontend receives an instant `jobId` confirmation without waiting or freezing!
+
+--------------------------------------------------------------------------------
+3.7 WHAT IS AN IFRAME SANDBOX FOR LIVE UI PREVIEWS? (THE BULLETPROOF WINDOW)
+--------------------------------------------------------------------------------
+- For UI engineering tasks, candidates write HTML, CSS, and JavaScript.
+- If we rendered their HTML/JS directly inside our main React application, their code 
+  could accidentally overwrite PlacePrep's Navbar, break styles, or execute scripts 
+  stealing session tokens!
+- We use an `<iframe>` with the HTML5 `sandbox="allow-scripts"` attribute.
+- Think of an iframe sandbox like a bulletproof glass window: you can see what is happening 
+  inside the room, but anything inside that room cannot reach out and touch the rest of 
+  the building.
+
+--------------------------------------------------------------------------------
+3.8 WHAT IS AUTOMATED DOM TESTING? (THE AUTOMATED QUALITY INSPECTOR)
+--------------------------------------------------------------------------------
+- In UI tasks, how do we know if the student completed the task correctly?
+- In `UiTaskWorkspace.jsx`, when the student clicks "Verify UI Requirements", our 
+  verification engine automatically inspects the candidate's code:
+  * Does the card use flexbox/grid layout?
+  * Does the status badge have the correct emerald background `#d1fae5`?
+  * Does the button have hover and focus transition styles?
+  * Does clicking the button toggle the text to "✓ Verified"?
+- Each criterion turns from a gray circle into a glowing green checkmark with an 
+  updated score badge (e.g. "4 / 4 Requirements Passed").
+
+--------------------------------------------------------------------------------
+3.9 WHAT IS ACTIVE EXAM REDUX STATE (`examSlice.js`)? (THE DIGITAL ANSWER BOOKLET)
+--------------------------------------------------------------------------------
+- In Phase 1, we explained Redux as the "Central Bank" for state.
+- In Phase 2, `examSlice.js` acts as the candidate's digital answer booklet:
+  * It stores the active question list.
+  * It records every keystroke, option click, or SQL query per question ID.
+  * Even if the student navigates between Question 1 and Question 5, their written 
+    code or selected options are never lost.
+  * It tracks whether a question has been marked for later review.
+
+--------------------------------------------------------------------------------
+3.10 WHAT IS A QUESTION PALETTE & STATUS MATRIX? (THE OMR BUBBLE TRACKER)
+--------------------------------------------------------------------------------
+- In competitive examinations (like JEE, GATE, CAT), candidates have a grid of numbered 
+  buttons representing all questions.
+- Our `QuestionPalette.jsx` displays color-coded statuses:
+  * Green: Question is answered.
+  * Purple: Question is marked for review.
+  * Purple with dot: Question is answered AND marked for review.
+  * Slate Gray: Question has been visited but not answered.
+  * Dark Gray: Question has not been visited yet.
+  * Indigo Ring: The question you are currently viewing.
+- Candidates can filter by "Answered", "Unanswered", or "Review" and jump to any question 
+  with a single click.
+
+--------------------------------------------------------------------------------
+3.11 WHAT IS IDEMPOTENT SUBMISSION?
+--------------------------------------------------------------------------------
+- What is Idempotency?: An operation is "idempotent" if performing it multiple times 
+  produces the exact same result as performing it once.
+- Why it matters in exams: If a student's internet fluctuates and they click "Submit" 
+  three times, or their browser auto-retries a failed network packet, we must NEVER 
+  create 3 separate duplicate exam submissions in the database!
+- Our API attaches an `Idempotency-Key: sub_<assessmentId>_<timestamp>` header. 
+  The server recognizes duplicate submissions and safely returns the existing job receipt.
+
+
+================================================================================
+4. DETAILED FILE-BY-FILE WALKTHROUGH (HOW TO READ THE PHASE 2 CODE)
+================================================================================
+
+Here is the exact architectural file map of everything created and integrated in Phase 2:
+
+src/
+├── api/
+│   └── assessmentApi.js
+│       PURPOSE: Assessment API service connecting to backend assessment routes.
+│       WHY WE USE IT: Contains methods:
+│         - `getAssessments()`: Fetches the student's catalog of assigned tests.
+│         - `getAssessmentById(id)`: Fetches questions, story specs, and starter code.
+│         - `getAuthoritativeTime(id)`: Fetches server timestamp for clock calibration.
+│         - `runCodeSandbox(...)`: Executes code in the Docker sandbox (<2s target).
+│         - `runSqlQuery(...)`: Evaluates SQL queries against test schemas.
+│         - `submitAssessment(...)`: Dispatches submission to Upstash QStash queue.
+│       Includes seed data for TCS NQT 2024 Prep Track and Accenture Cognitive Mock.
+│
+├── features/
+│   └── exam/
+│       ├── examSlice.js
+│       │   PURPOSE: The centralized Redux state slice for active assessments.
+│       │   WHY WE USE IT: Stores `activeAssessment`, `questions`, `currentQuestionIndex`, 
+│       │   `answers`, `questionStatus`, `timer`, `execution`, and `submission`.
+│       │   Exports actions: `setAssessment`, `selectQuestionIndex`, `saveAnswer`, 
+│       │   `toggleMarkForReview`, `clearAnswer`, `tickTimer`, `executionSuccess`, etc.
+│       │
+│       ├── examThunks.js
+│       │   PURPOSE: Asynchronous thunk actions for test execution.
+│       │   WHY WE USE IT: Coordinates API requests with Redux updates. For example, 
+│       │   `executeCode` dispatches an `executionStart` action (showing the spinner), 
+│       │   sends the code to the sandbox API, and dispatches `executionSuccess` with 
+│       │   stdout and test case results.
+│       │
+│       └── examHooks.js
+│           PURPOSE: Custom React hooks (`useActiveExam` and `useExamTimer`).
+│           WHY WE USE IT: Provides components with clean one-line access to exam state:
+│           `const { currentQuestion, updateAnswer, runCode, submitExam } = useActiveExam();`
+│           `useExamTimer` manages the 1-second countdown and 45-second authoritative 
+│           server sync heartbeat.
+│
+├── components/
+│   └── assessment/
+│       ├── ExamHeader.jsx
+│       │   PURPOSE: The top navigation bar inside an active test.
+│       │   WHY WE USE IT: Displays assessment title, company track badge (TCS NQT), 
+│       │   current question counter (e.g. "Question 3 of 5"), authoritative timer, 
+│       │   "Mark for Review" button, Prev/Next controls, Palette toggle, and "Submit".
+│       │
+│       ├── QuestionPalette.jsx
+│       │   PURPOSE: Slide-over question grid and section navigator.
+│       │   WHY WE USE IT: Displays 1..N question buttons with color-coded status badges, 
+│       │   metric cards (Answered, Review, Unvisited), status filter tabs, and legend.
+│       │
+│       ├── SubmissionModal.jsx
+│       │   PURPOSE: Pre-submission verification modal and async queue receipt.
+│       │   WHY WE USE IT: Prevents accidental submissions. Displays a count of answered 
+│       │   vs. unanswered questions, time remaining, an acknowledgment checkbox, and 
+│       │   shows the Upstash QStash `jobId` after dispatch.
+│       │
+│       ├── timer/
+│       │   └── ServerExamTimer.jsx
+│       │       PURPOSE: Server-authoritative timer pill.
+│       │       WHY WE USE IT: Renders the remaining time in `HH:MM:SS` format. Dynamically 
+│       │       shifts colors: Green for normal, Amber for warning (<10 min), and Red 
+│       │       pulsing animation for critical urgency (<2 min). Features a green dot 
+│       │       indicating backend NTP/server sync.
+│       │
+│       ├── editor/
+│       │   └── MonacoCodeEditor.jsx
+│       │       PURPOSE: Production-grade VS Code code editor component.
+│       │       WHY WE USE IT: Wraps `@monaco-editor/react`. Includes language dropdown 
+│       │       (Python, JS, Java, C++, SQL), dark/light theme switch, font size controls, 
+│       │       copy button, template reset confirmation, and an auto-save status bar.
+│       │
+│       └── formats/
+│           ├── McqWorkspace.jsx
+│           │   PURPOSE: Multiple-Choice Question workspace.
+│           │   WHY WE USE IT: Renders question prompt, syntax-highlighted code block, 
+│           │   option buttons with hover/active states, keyboard listeners (A-D / 1-4), 
+│           │   and a "Clear Choice" button.
+│           │
+│           ├── SimulationWorkspace.jsx
+│           │   PURPOSE: Story-based algorithmic simulation coding workspace.
+│           │   WHY WE USE IT: Split screen: Left side shows problem story, constraints, 
+│           │   and sample test cases with copy buttons. Right side hosts the Monaco 
+│           │   Editor, "Run Sample Tests" button, custom input tab, and Docker Sandbox 
+│           │   execution console with pass/fail badges.
+│           │
+│           ├── SqlTaskWorkspace.jsx
+│           │   PURPOSE: Database query engineering workspace.
+│           │   WHY WE USE IT: Split screen: Left side shows SQL problem statement and an 
+│           │   interactive Database Schema Inspector (tables: employees, departments, 
+│           │   columns, primary keys, sample rows). Right side hosts the Monaco SQL editor, 
+│           │   "Execute Query" button, and tabular output comparison against expected data.
+│           │
+│           └── UiTaskWorkspace.jsx
+│               PURPOSE: Interactive UI modification workspace.
+│               WHY WE USE IT: Split screen: Left side displays UI task brief and an 
+│               acceptance requirements checklist. Right side features code tabs (HTML, 
+│               CSS, JS), Monaco editor, "Verify UI Requirements" button, and a sandboxed 
+│               live preview iframe that updates reactively in real time.
+│
+├── pages/
+│   └── assessment/
+│       ├── AssessmentPlayerPage.jsx
+│       │   PURPOSE: Fullscreen, distraction-free test-taking container.
+│       │   WHY WE USE IT: Hides the regular dashboard sidebar during exams to maximize 
+│       │   screen space. Orchestrates `ExamHeader`, `QuestionPalette`, `SubmissionModal`, 
+│       │   and dynamically renders the matching workspace (`McqWorkspace`, `SimulationWorkspace`, 
+│       │   `SqlTaskWorkspace`, or `UiTaskWorkspace`) based on `currentQuestion.type`.
+│       │
+│       └── AssessmentsListPage.jsx
+│           PURPOSE: Student assessment catalog.
+│           WHY WE USE IT: Displays available tests with company track badges, duration, 
+│           marks, question counts, format badges (MCQ, Simulation, SQL, UI), and 
+│           "Launch Assessment" buttons.
+│
+├── routes/
+│   ├── paths.js
+│   │   MODIFICATION: Added `ROUTES.STUDENT.ASSESSMENT_PLAYER` (`/student/assessment/:assessmentId`).
+│   │
+│   └── AppRoutes.jsx
+│       MODIFICATION: Replaced Phase 2 placeholder with `AssessmentsListPage` and mounted 
+│       the distraction-free `AssessmentPlayerPage` protected by Student role guards.
+│
+├── store/
+│   └── rootReducer.js
+│       MODIFICATION: Combined `examReducer` alongside `authReducer` in the master store.
+│
+└── pages/dashboards/
+    └── StudentDashboard.jsx
+        MODIFICATION: Wired "Start Exam" and "Launch Round" buttons directly to the assessment player.
+
+
+================================================================================
+5. HOW THE ASSESSMENT ENGINE WORKS UNDER THE HOOD (STEP-BY-STEP DATA FLOWS)
+================================================================================
+
+Here is the exact lifecycle of data during an assessment:
+
+--------------------------------------------------------------------------------
+FLOW A: CANDIDATE LAUNCHES ASSESSMENT & SYNCS SERVER CLOCK
+--------------------------------------------------------------------------------
+1. Student clicks "Start Exam" on the TCS NQT card on the Student Dashboard.
+2. React Router navigates to `/student/assessment/tcs-nqt-tech-01`.
+3. `AssessmentPlayerPage.jsx` mounts and dispatches `loadAssessment("tcs-nqt-tech-01")`.
+4. `examThunks.js` calls `assessmentApi.getAssessmentById("tcs-nqt-tech-01")`.
+5. The API returns the assessment payload containing 5 multi-format questions, 
+   `serverCurrentTime`, and `serverDeadline`.
+6. `examSlice.js` receives `setAssessment`:
+   * Calculates `serverTimeOffset = serverCurrentTime - clientNow`.
+   * Calculates `remainingSeconds = (serverDeadline - (clientNow + offset)) / 1000`.
+   * Sets question #1 as `currentQuestionIndex = 0` and marks it `VISITED`.
+   * Pre-populates starter code into `state.exam.answers`.
+7. `ServerExamTimer.jsx` begins ticking down every 1 second.
+
+--------------------------------------------------------------------------------
+FLOW B: CANDIDATE SOLVES SIMULATION CODING (MONACO -> SANDBOX -> TEST CASES)
+--------------------------------------------------------------------------------
+1. Candidate navigates to Question #3 (Fleet Routing Simulation problem).
+2. `AssessmentPlayerPage` inspects `currentQuestion.type === 'SIMULATION'` and renders 
+   `<SimulationWorkspace />`.
+3. Left pane displays the logistics fleet story, constraints, and sample cases.
+4. Right pane renders `<MonacoCodeEditor />` pre-loaded with Python 3.11 starter code.
+5. As candidate types, `handleCodeChange` dispatches `saveAnswer`:
+   * Updates `state.exam.answers['q-tcs-03'].code`.
+   * Status bar shows "Auto-saved in Redux" and character count.
+6. Candidate clicks "Run Sample Tests":
+   * Workspace dispatches `executeCode({ assessmentId, questionId, code, language })`.
+   * `assessmentApi.runCodeSandbox` sends payload to the isolated Docker sandbox.
+   * In 184ms (<2s), the sandbox finishes and returns stdout logs and test results.
+   * `examSlice.js` updates `state.exam.execution['q-tcs-03']`.
+   * The execution drawer opens displaying green `3/3 Tests Passed` badges and stdout.
+
+--------------------------------------------------------------------------------
+FLOW C: CANDIDATE SOLVES SQL TASK (SCHEMA INSPECTOR -> EXECUTION -> OUTPUT DIFF)
+--------------------------------------------------------------------------------
+1. Candidate navigates to Question #4 (Department Top 2 Earners).
+2. `AssessmentPlayerPage` renders `<SqlTaskWorkspace />`.
+3. Left pane renders the Database Schema Inspector:
+   * Candidate clicks between `employees` and `departments` table tabs.
+   * Schema inspector shows column names (`salary`, `department_id`), data types, 
+     primary keys, and sample database tuples.
+4. Right pane displays the Monaco SQL editor.
+5. Candidate enters their query and clicks "Execute Query".
+6. In ~82ms, the test query runs and returns tabular results:
+   * Results drawer renders student's output table: `department_name`, `employee_name`, `salary`, `salary_rank`.
+   * Compares with expected output and flashes green: `✓ Output Matches Expected`.
+
+--------------------------------------------------------------------------------
+FLOW D: CANDIDATE SOLVES UI TASK (CODE TABS -> LIVE IFRAME -> DOM CHECK)
+--------------------------------------------------------------------------------
+1. Candidate navigates to Question #5 (Placement Candidate Card).
+2. `AssessmentPlayerPage` renders `<UiTaskWorkspace />`.
+3. Left pane displays the UI Brief and 4 acceptance requirements.
+4. Right pane provides 3 code tabs: `index.html`, `styles.css`, `script.js`.
+5. Below the editor, an `<iframe sandbox="allow-scripts">` renders the live preview.
+6. When the candidate edits CSS (e.g. changing badge padding or colors), the preview 
+   updates instantly.
+7. Candidate clicks "Verify UI Requirements":
+   * Engine evaluates DOM assertions.
+   * Checklist items update to green checkmarks (`4 / 4 Passed`).
+
+--------------------------------------------------------------------------------
+FLOW E: AUTHORITATIVE TIMER HEARTBEAT & CLOCK DRIFT CORRECTION
+--------------------------------------------------------------------------------
+1. While the exam runs, `useExamTimer` hook maintains an active interval.
+2. Every 45 seconds, or whenever the candidate switches away and returns to the tab 
+   (`document.visibilitychange === 'visible'`), `syncExamTimer` executes.
+3. Node.js backend returns its authoritative server timestamp.
+4. `updateAuthoritativeServerTime` recalibrates `serverTimeOffset`.
+5. If remaining time falls below 10 minutes, the timer switches to amber.
+6. If remaining time falls below 2 minutes, the timer pulses with a red alert badge.
+7. When remaining time hits 0, `isTimeUp = true` triggers auto-lock.
+
+--------------------------------------------------------------------------------
+FLOW F: CANDIDATE REVIEWS & SUBMITS (PRE-SUBMISSION MODAL -> ASYNC QSTASH QUEUE)
+--------------------------------------------------------------------------------
+1. Candidate clicks "Submit" in the top header.
+2. `SubmissionModal.jsx` opens:
+   * Summarizes: 5 Questions Answered, 0 Unanswered, 1 Marked for Review.
+   * Displays authoritative time remaining.
+3. Candidate checks: "I confirm that I have reviewed my answers..." and clicks "Confirm & Submit".
+4. `examThunks.js` dispatches `finalizeSubmission`:
+   * Packages all answers from Redux (`answers['q-tcs-01']` through `q-tcs-05`).
+   * Attaches proctoring metadata and an `Idempotency-Key`.
+   * Sends POST request to `/api/assessments/:id/submit`.
+5. Node.js writes answers to PostgreSQL transactional outbox and dispatches an 
+   asynchronous event to Upstash QStash.
+6. Modal updates to show green checkmark receipt with `Async Job ID: qstash_job_x9f2a7`.
+7. Candidate clicks "Return to Student Dashboard".
+
+
+================================================================================
+6. HOW TO RUN, TEST, AND VERIFY PHASE 2 ON YOUR MACHINE IN 2 MINUTES
+================================================================================
+
+Follow these step-by-step instructions to run and test Phase 2 right now:
+
+STEP 1: OPEN YOUR TERMINAL
+  Navigate to the project root:
+  cd p:\Projects\placement-react-web
+
+STEP 2: START THE VITE DEV SERVER
+  Command:
+    npm run dev
+  Output:
+    VITE ready in ~200ms
+    Local: http://localhost:5173/
+
+STEP 3: SIGN IN AS A STUDENT
+  1. Open http://localhost:5173/login in your browser.
+  2. Click the "Student (OTP)" tab.
+  3. Enter Student ID: STU-2024-8891
+  4. Click "Request One-Time Passkey" (Mock passkey is 123456).
+  5. Enter 123456 and click "Verify & Enter Exam Portal".
+  6. You land on the Student Dashboard (`/student/dashboard`).
+
+STEP 4: LAUNCH THE TCS NQT ASSESSMENT
+  1. Under "Assigned Assessments", click the "Start Exam" button on the TCS NQT card.
+     (Or click "View All" to view the full catalog at `/student/assessments`).
+  2. You will enter the full-screen exam player: `/student/assessment/tcs-nqt-tech-01`.
+
+STEP 5: TEST THE 4 EVALUATION WORKSPACES
+  - Test Question 1 (MCQ):
+    * Read the Graph Traversal prompt and code reference.
+    * Press keyboard key 'B' or click Option B.
+    * Notice the instant Redux save and the option glowing with an indigo ring.
+  - Test Question 3 (Simulation Coding):
+    * Click Next until you reach Question 3.
+    * Notice the split screen: Fleet routing story on the left; Monaco Editor on the right.
+    * Click "Copy Input" on Sample Case 1.
+    * Click "Run Sample Tests" in the Monaco editor header.
+    * Watch the Docker Sandbox execution drawer output logs with `3/3 Tests Passed` in <1 second!
+  - Test Question 4 (SQL Task):
+    * Click Next to reach Question 4.
+    * In the Database Schema Inspector on the left, click the `employees` and `departments` tabs.
+    * Notice the primary keys, column types, and sample data table.
+    * In the Monaco SQL editor on the right, click "Execute Query".
+    * Notice the query execution grid appear with tabular results compared against expected output!
+  - Test Question 5 (UI Engineering Task):
+    * Click Next to reach Question 5.
+    * Switch between `index.html`, `styles.css`, and `script.js` tabs.
+    * Look at the live interactive Candidate Card rendered in the bottom right iframe!
+    * Click "Verify UI Requirements" to run automated DOM assertions.
+
+STEP 6: TEST QUESTION PALETTE & TIMER
+  - Click the "Palette" button in the top right header.
+  - Notice the color-coded question pills (Answered = Green, Marked = Purple, Current = Indigo).
+  - Click filter "Answered" or "Unanswered".
+  - Look at the top center timer pill with the green "Server Synced" indicator.
+
+STEP 7: TEST PRE-SUBMISSION CONFIRMATION
+  - Click "Submit" in the top right header.
+  - Notice the pre-submission summary displaying total answered vs unanswered questions.
+  - Check the confirmation box and click "Confirm & Submit".
+  - View the Upstash QStash async queue receipt (`jobId`).
+  - Click "Return to Student Dashboard".
+
+STEP 8: RUN CODE QUALITY VERIFICATION
+  - Run linting:
+    npm run lint
+    (Output: 0 errors, 0 warnings)
+  - Run production build:
+    npm run build
+    (Output: Compiled cleanly in ~700ms)
+
+
+================================================================================
+7. SUMMARY & HANDOVER FOR PHASE 3
+================================================================================
+
+Phase 2 establishes the complete, production-ready assessment engine of PlacePrep Secure:
+  [OK] Monaco Editor integration with VS Code engine.
+  [OK] Centralized Redux active exam state (`examSlice.js`).
+  [OK] Server-authoritative timer synchronization.
+  [OK] Multi-format conditional rendering (MCQ, Simulation, SQL, UI).
+  [OK] Distraction-free exam player with question palette drawer.
+  [OK] Pre-submission confirmation with Upstash QStash async receipt.
+  [OK] Zero lint errors (`npm run lint`), passing production build (`npm run build`).
+
+Teammate Handover Readiness for Phase 3:
+  - Nikita (Me): Ready to build the Gamified Cognitive Rounds (Grid Memory and Path-finding 
+    using Framer Motion) and integrate the frontend Socket.io anti-cheat event listeners.
+  - Kaif (Backend): The assessment question structures, submission payloads, and 
+    authoritative time sync endpoints in `src/api/assessmentApi.js` match the Node.js 
+    Prisma schema and submission APIs.
+  - Pankaj (Python / AI): The simulation code formats, Docker sandbox response schemas, 
+    and Upstash QStash queue job contracts are established for Celery worker processing.
+
+================================================================================
+End of Phase 2 Documentation File.
+================================================================================

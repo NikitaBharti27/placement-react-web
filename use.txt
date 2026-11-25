@@ -148,6 +148,20 @@ TEST 3: USE THE DEVELOPER ROLE SANDBOX
 5. Click "Super Admin" ➔ You jump to `/super-admin/dashboard`.
 6. Click "Sign Out" ➔ Your tokens and session are wiped clean!
 
+TEST 4: TEST PHASE 2 MULTI-FORMAT ASSESSMENT ENGINE (NEW)
+1. Sign in as Student (or click "Student View" in sandbox widget).
+2. On Student Dashboard (`/student/dashboard`), click "Start Exam" on the TCS NQT card.
+   (Or navigate to `/student/assessments` to view the full Assessment Catalog).
+3. You enter the distraction-free exam environment: `/student/assessment/tcs-nqt-tech-01`.
+4. Verify the 4 Evaluation Formats:
+   - Question 1 (MCQ): Select option B using mouse or keyboard key 'B'. Notice instant Redux auto-save.
+   - Question 3 (Simulation): Real-world fleet routing problem. In the Monaco Editor, click "Run Sample Tests" ➔ Instant execution in under 2s with Docker Sandbox logs and 3/3 passed test cases.
+   - Question 4 (SQL Task): Click "Execute Query" ➔ Instant SQL table output comparison grid.
+   - Question 5 (UI Task): Edit HTML/CSS/JS with live interactive iframe preview! Click "Verify UI Requirements" for automated DOM assertions.
+5. Verify Server-Authoritative Timer: Look at the top center clock (green pill with server sync badge).
+6. Verify Question Palette: Click "Palette" in top-right ➔ Color-coded grid (Answered = Green, Review = Purple).
+7. Final Submission: Click "Submit" ➔ Review answered/unanswered counts ➔ Click "Confirm & Submit" ➔ View Upstash QStash async queue job confirmation!
+
 --------------------------------------------------------------------------------
 End of use.txt file.
 ================================================================================

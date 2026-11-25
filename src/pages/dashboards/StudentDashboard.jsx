@@ -1,4 +1,6 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/authHooks'
+import { ROUTES } from '../../routes/paths'
 import {
   GraduationCap,
   Sparkles,
@@ -10,6 +12,7 @@ import {
 
 export const StudentDashboard = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <div className="space-y-6">
@@ -59,9 +62,13 @@ export const StudentDashboard = () => {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900">Assigned Assessments</h2>
-            <span className="text-xs text-indigo-600 font-semibold cursor-pointer hover:underline">
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.STUDENT.ASSESSMENTS)}
+              className="text-xs text-indigo-600 font-semibold hover:underline"
+            >
               View All (4)
-            </span>
+            </button>
           </div>
 
           {/* Card 1: TCS NQT Full Simulation */}
@@ -90,7 +97,11 @@ export const StudentDashboard = () => {
 
             <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
               <span className="text-slate-500">Includes mandatory anti-cheat consent modal</span>
-              <button className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center gap-1.5 transition">
+              <button
+                type="button"
+                onClick={() => navigate('/student/assessment/tcs-nqt-tech-01')}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center gap-1.5 transition active:scale-95"
+              >
                 <span>Start Exam</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -123,7 +134,11 @@ export const StudentDashboard = () => {
 
             <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs">
               <span className="text-slate-500">Anti-tamper click verification enabled</span>
-              <button className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium flex items-center gap-1.5 transition">
+              <button
+                type="button"
+                onClick={() => navigate('/student/assessment/accenture-gamified-mock')}
+                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium flex items-center gap-1.5 transition active:scale-95"
+              >
                 <span>Launch Round</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>

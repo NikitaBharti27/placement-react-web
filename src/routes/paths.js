@@ -11,6 +11,7 @@ export const ROUTES = {
     ROOT: '/student',
     DASHBOARD: '/student/dashboard',
     ASSESSMENTS: '/student/assessments',
+    ASSESSMENT_PLAYER: '/student/assessment/:assessmentId',
     GAMES: '/student/cognitive-games',
     STUDY_PLAN: '/student/study-plan',
     LEADERBOARD: '/student/leaderboard',
