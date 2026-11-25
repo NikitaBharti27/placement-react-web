@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import ServerExamTimer from './timer/ServerExamTimer'
 import { QUESTION_STATUS } from '../../features/exam/examSlice'
+import { Badge } from '../ui/Badge'
+import { ProgressBar } from '../ui/ProgressBar'
 
 /**
  * Top Exam Navigation & Header Bar
@@ -38,16 +40,27 @@ export const ExamHeader = ({
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-semibold text-sm truncate max-w-[200px] sm:max-w-xs md:max-w-md">
+              <span className="font-semibold text-sm truncate max-w-[180px] sm:max-w-xs md:max-w-md">
                 {assessment?.title || 'Placement Assessment'}
               </span>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-800">
+              <Badge variant="primary" size="sm" dot className="hidden sm:inline-flex">
                 {assessment?.companyTrack || 'Campus MNC Drive'}
-              </span>
+              </Badge>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Question <span className="text-white font-bold">{currentQuestionIndex + 1}</span> of{' '}
-              <span className="text-white font-bold">{totalQuestions}</span>
+            <div className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span>
+                Question <strong className="text-white">{currentQuestionIndex + 1}</strong> of{' '}
+                <strong className="text-white">{totalQuestions}</strong>
+              </span>
+              <span className="hidden md:inline">•</span>
+              <div className="hidden md:block w-24">
+                <ProgressBar
+                  value={currentQuestionIndex + 1}
+                  max={totalQuestions}
+                  size="sm"
+                  variant="indigo"
+                />
+              </div>
             </div>
           </div>
         </div>

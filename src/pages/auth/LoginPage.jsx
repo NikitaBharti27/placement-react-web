@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../features/auth/authHooks'
 import { ROLES } from '../../config/roles'
 import { getDefaultRouteForRole } from '../../utils/roleUtils'
+import { OtpInput } from '../../components/ui/OtpInput'
 import {
   GraduationCap,
   Building,
@@ -186,17 +187,14 @@ export const LoginPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Enter 6-Digit Passkey
+                  <label className="block text-xs font-semibold text-slate-300 mb-2 text-center">
+                    Enter 6-Digit One-Time Passkey
                   </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
+                  <OtpInput
+                    length={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="123456"
-                    className="w-full tracking-widest text-center font-mono text-lg px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    onChange={setOtp}
+                    onComplete={(completedVal) => setOtp(completedVal)}
                   />
                 </div>
 
