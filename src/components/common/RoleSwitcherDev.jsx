@@ -46,6 +46,18 @@ export const RoleSwitcherDev = () => {
             <span className="text-[10px] text-slate-500 font-mono">Nikita's RBAC Testbench</span>
           </div>
 
+          {/* Quick Launch Phase 2 Assessment */}
+          <button
+            type="button"
+            onClick={() => {
+              loginWithMockRole(ROLES.STUDENT)
+              navigate('/student/assessment/tcs-nqt-tech-01')
+            }}
+            className="w-full py-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold rounded-lg text-xs shadow-md flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+          >
+            <span>⚡ Launch Phase 2 Assessment Engine</span>
+          </button>
+
           <div className="grid grid-cols-2 gap-2">
             {Object.values(ROLES).map((r) => {
               const active = role === r && isAuthenticated

@@ -5,7 +5,6 @@ import { getDefaultRouteForRole } from '../utils/roleUtils'
 import {
   Shield,
   GraduationCap,
-  Building,
   Cpu,
   BarChart3,
   Lock,
@@ -57,7 +56,7 @@ export const HomePage = () => {
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center text-center justify-center">
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-700/60 text-indigo-300 text-xs font-medium mb-6">
           <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Phase 1 Architecture Complete: Identity, RBAC & State</span>
+          <span>Phase 2 Live: Core Assessment Engine with Monaco Editor & Draggable SplitPane</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-4xl leading-tight">
@@ -65,26 +64,26 @@ export const HomePage = () => {
         </h1>
 
         <p className="mt-6 text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
-          The next-generation SaaS assessment ecosystem. Gamified cognitive rounds (Grid Memory &
-          Path-finding), Dockerized code execution sandbox, real-time proctoring, and granular
-          diagnostic skill heatmaps.
+          The next-generation placement testing ecosystem. Multi-format evaluations with VS Code Monaco
+          Editor, resizable split-pane workspaces, isolated Docker sandboxes, SQL database queries,
+          live UI previews, and server-authoritative anti-tamper timers.
         </p>
 
         {/* CTA Buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
+        <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full max-w-lg justify-center">
           <Link
-            to={ROUTES.LOGIN}
-            className="flex-1 py-3 px-6 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-semibold text-sm rounded-xl shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 transition"
+            to="/student/assessment/tcs-nqt-tech-01"
+            className="flex-1 py-3 px-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-xl shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 transition active:scale-95 border border-indigo-400/30"
           >
-            <GraduationCap className="w-5 h-5" />
-            <span>Student Login (OTP)</span>
+            <span>⚡ Launch Phase 2 Assessment</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             to={ROUTES.LOGIN}
-            className="flex-1 py-3 px-6 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm rounded-xl flex items-center justify-center space-x-2 transition"
+            className="py-3 px-6 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm rounded-xl flex items-center justify-center space-x-2 transition"
           >
-            <Building className="w-5 h-5 text-indigo-400" />
-            <span>Institutional SSO</span>
+            <GraduationCap className="w-5 h-5" />
+            <span>Student Login (OTP)</span>
           </Link>
         </div>
 
