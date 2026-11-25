@@ -1,122 +1,126 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { AuthLayout } from './layouts/AuthLayout';
+import { DashboardLayoutPreview } from './layouts/DashboardLayoutPreview';
+import { AssessmentLayout } from './layouts/AssessmentLayout';
+import { LoginForm } from './features/auth/components/LoginForm';
+import { OtpVerificationForm } from './features/auth/components/OtpVerificationForm';
+import { RegisterForm } from './features/auth/components/RegisterForm';
+import { useAuthMock } from './features/auth/hooks/useAuthMock';
+import { USER_ROLES } from './features/auth/types/authTypes';
+import { Header } from './components/common/Header';
+import { Footer } from './components/common/Footer';
+import { RoleBadgeSelector } from './features/auth/components/RoleBadgeSelector';
+import { Button } from './components/ui/Button';
+import { PlayCircle } from 'lucide-react';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const {
+    user,
+    authStep,
+    setAuthStep,
+    pendingStudent,
+    isLoading,
+    requestOtp,
+    verifyOtp,
+    loginWithEntraId,
+    registerStudent,
+    switchRole,
+    logout,
+  } = useAuthMock();
+
+  const [activeView, setActiveView] = useState('DASHBOARD'); // 'DASHBOARD' | 'ASSESSMENT'
+
+  const handleRoleChange = (newRole) => {
+    setActiveView('DASHBOARD');
+    switchRole(newRole);
+  };
+
+  const handleLogout = () => {
+    setActiveView('DASHBOARD');
+    logout();
+  };
+
+  if (authStep === 'AUTHENTICATED' && user && activeView === 'ASSESSMENT') {
+    return (
+      <AssessmentLayout
+        onExitAssessment={() => setActiveView('DASHBOARD')}
+      />
+    );
+  }
+
+  if (authStep === 'AUTHENTICATED' && user) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#0A0D14] text-slate-100 bg-radial-glow bg-grid-pattern selection:bg-indigo-500 selection:text-white">
+        <Header activeRole={user.role} />
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-semibold text-white">Active Session Preview</span>
+              <span className="text-slate-400">• Role: {user.role}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {user.role === USER_ROLES.STUDENT && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setActiveView('ASSESSMENT')}
+                  leftIcon={<PlayCircle className="w-3.5 h-3.5" />}
+                >
+                  Open Phase 2 Exam UI
+                </Button>
+              )}
+              <RoleBadgeSelector
+                currentRole={user.role}
+                onSelectRole={handleRoleChange}
+              />
+            </div>
+          </div>
+
+          <DashboardLayoutPreview
+            user={user}
+            onLogout={handleLogout}
+            onSwitchRole={handleRoleChange}
+            onStartAssessment={() => setActiveView('ASSESSMENT')}
+          />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <AuthLayout
+      currentRole={user?.role}
+      onSelectRole={handleRoleChange}
+    >
+      {authStep === 'LOGIN' && (
+        <LoginForm
+          onRequestOtp={requestOtp}
+          onEntraIdLogin={loginWithEntraId}
+          onSwitchToRegister={() => setAuthStep('REGISTER')}
+          isLoading={isLoading}
+        />
+      )}
 
-      <div className="ticks"></div>
+      {authStep === 'OTP_VERIFICATION' && (
+        <OtpVerificationForm
+          studentId={pendingStudent?.studentId}
+          tenantName={pendingStudent?.tenantName}
+          onVerify={verifyOtp}
+          onBack={() => setAuthStep('LOGIN')}
+          onResend={() => requestOtp(pendingStudent)}
+          isLoading={isLoading}
+        />
+      )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {authStep === 'REGISTER' && (
+        <RegisterForm
+          onRegister={registerStudent}
+          onSwitchToLogin={() => setAuthStep('LOGIN')}
+          isLoading={isLoading}
+        />
+      )}
+    </AuthLayout>
+  );
 }
-
-export default App

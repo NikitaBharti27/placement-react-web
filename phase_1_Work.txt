@@ -1,0 +1,399 @@
+================================================================================
+           PLACEPREP SECURE — PHASE 1 DEVELOPMENT & ARCHITECTURE GUIDE
+================================================================================
+Target Branch: muwahid
+Lead Frontend Architect & UI/UX Developer: Muwahid
+Project Objective: Modern AI-Powered Placement Prep Platform (Free-Tier Optimized)
+Target Audience: Complete Beginners, Evaluators, and Engineering Teammates
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. The Problem PlacePrep Secure Solves (The Placement Gap)
+2. Phase 1 Goal & Responsibility Breakdown (Muwahid vs Teammates)
+3. Technologies Explained for Complete Beginners (What, Why, Real-World Analogy)
+4. Comprehensive Tour of Every File Created in Phase 1
+5. How Everything Works Step-by-Step (The End-to-End Flow)
+6. How Teammates (Nikita, Kaif, Atanu) Connect Their Work
+7. How to Run, Test, and Verify This Project Locally
+
+
+================================================================================
+1. THE PROBLEM PLACEPREP SECURE SOLVES (THE PLACEMENT GAP)
+================================================================================
+When college engineering students prepare for campus placements, they usually 
+practice on outdated websites with simple Multiple Choice Questions (MCQs).
+
+However, top multi-national companies (MNCs like Accenture, TCS, Capgemini) have 
+radically modernized their hiring process:
+  1. Accenture & Capgemini use "Gamified Cognitive Rounds" (Grid Memory games, 
+     Path-finding puzzles) to test spatial memory and problem-solving.
+  2. Top tech firms use "Simulation Coding" inside a realistic VS Code editor.
+  3. Real exams enforce strict browser anti-cheat proctoring.
+  4. Most importantly, college professors and placement cells are "flying blind." 
+     When a student fails with a 60% score, the teacher has NO IDEA why. Did the 
+     student fail because of Graph algorithms in DSA? Or did they fail because 
+     of poor spatial memory in the game round?
+
+PlacePrep Secure fixes this three-sided gap:
+  - Students get real corporate exam simulations (VS Code Monaco editor + cognitive games).
+  - Teachers get "Topic-Level Heatmaps" showing exactly which sub-topic (e.g., SQL Joins) 
+    a student is failing across multiple tests, with AI-generated study plans.
+  - College Admins can bulk-upload 5,000+ students via CSV and track departmental readiness.
+
+
+================================================================================
+2. PHASE 1 GOAL & RESPONSIBILITY BREAKDOWN
+================================================================================
+Phase 1 is titled: "Foundation, Identity & Infrastructure Setup".
+Its purpose is to build the bedrock of the entire project so all later features 
+(Monaco editor in Phase 2, Anti-Cheat in Phase 3, Heatmaps in Phase 4) have a solid, 
+gorgeous, accessible, and production-grade foundation.
+
+Frontend Team Roles in Phase 1:
+--------------------------------------------------------------------------------
+* MUWAHID (Senior UI/UX & Frontend Developer):
+    - Design system architecture (color tokens, typography, dark/slate aesthetics)
+    - Tailwind CSS configuration & custom animation keyframes
+    - Reusable atomic UI Component Library (Buttons, Inputs, Cards, Badges, Modals, etc.)
+    - Identity & Authentication UI (Passwordless Student ID + OTP flow & Entra ID SSO)
+    - Split-screen responsive layout & Role testing harness
+
+* NIKITA (Frontend & Redux Lead):
+    - Redux Toolkit store setup (`authSlice.js`)
+    - MSAL client instance setup (`@azure/msal-react`)
+    - React Router role-based route guards (`RoleGuard.jsx`)
+
+
+================================================================================
+3. TECHNOLOGIES EXPLAINED FOR COMPLETE BEGINNERS
+================================================================================
+
+--------------------------------------------------------------------------------
+A) REACT 19 & SINGLE PAGE APPLICATION (SPA)
+--------------------------------------------------------------------------------
+* What is it?
+  React is the world's most popular JavaScript library created by Meta (Facebook). 
+  It allows developers to build user interfaces using small, reusable "components" 
+  (like digital Lego blocks).
+* What is an SPA (Single Page Application)?
+  In old websites, clicking a link causes the entire browser to go white, reload, 
+  and re-download all HTML and images. In an SPA, the browser loads once. When 
+  you click buttons or switch pages, JavaScript instantly swaps the components 
+  without any page reload or flicker!
+* Real-World Analogy:
+  Imagine a digital dashboard in a modern car. When you switch from the speedometer 
+  to GPS navigation, the car doesn't turn off its engine and restart; the digital 
+  screen simply updates the pixels in a split second.
+
+--------------------------------------------------------------------------------
+B) VITE 8
+--------------------------------------------------------------------------------
+* What is it?
+  Vite (French word for "fast", pronounced "veet") is a next-generation build tool 
+  created by Evan You (creator of Vue.js).
+* Why do we use it instead of old Create-React-App (CRA)?
+  Old tools took 1 to 2 minutes just to start the dev server and packed hundreds 
+  of files slowly. Vite uses modern browser ES Modules and native Rust/Rollup 
+  tooling. It starts the local server in 100 milliseconds and provides Hot Module 
+  Replacement (HMR) — when you change a line of code, Vite updates only that 
+  component in the browser instantly without losing your form state.
+* Real-World Analogy:
+  Old build tools were like postal mail; Vite is like an instant fiber-optic ping.
+
+--------------------------------------------------------------------------------
+C) TAILWIND CSS v4
+--------------------------------------------------------------------------------
+* What is it?
+  Tailwind CSS is a "utility-first" styling engine. Instead of creating massive 
+  separate CSS files (like `style.css` with 5,000 lines of complex rules), you 
+  apply utility classes directly inside your JSX tags (e.g., `text-white bg-slate-900 p-4 rounded-xl flex items-center`).
+* Why do we use Tailwind v4?
+  - Tailwind v4 is the newest release. It requires no heavy PostCSS config files.
+  - It uses `@import "tailwindcss";` directly in CSS and `@tailwindcss/vite` plugin.
+  - It compiles your styles in under 10 milliseconds.
+  - It ensures zero CSS file bloat: only classes you actually use are compiled!
+* Real-World Analogy:
+  Traditional CSS is like tailoring a custom suit from raw cloth every single time. 
+  Tailwind CSS is like having an organized workshop with pre-measured, high-quality 
+  designer parts that snap together perfectly.
+
+--------------------------------------------------------------------------------
+D) MICROSOFT ENTRA ID (FORMERLY AZURE ACTIVE DIRECTORY)
+--------------------------------------------------------------------------------
+* What is it?
+  Microsoft Entra ID is Microsoft's cloud identity, single sign-on (SSO), and 
+  access management platform.
+* Why do we use it in PlacePrep Secure?
+  Teachers, College Placement HODs, and Super Admins don't need to create yet 
+  another password that can be stolen. Instead, they click "Sign in with Microsoft 
+  Entra ID" and log in using their official university Office 365 / Microsoft 
+  account with multi-factor authentication (MFA).
+* Real-World Analogy:
+  Like showing your official university RFID badge with a cryptographic chip at 
+  the campus entrance gate instead of writing your name in a paper guestbook.
+
+--------------------------------------------------------------------------------
+E) OAUTH2 + PKCE (PROOF KEY FOR CODE EXCHANGE)
+--------------------------------------------------------------------------------
+* What is it?
+  OAuth2 is the industry standard authorization protocol. PKCE (pronounced "pixie") 
+  is an extra layer of security designed specifically for Single Page Applications.
+* Why is PKCE critical?
+  In classic server apps, the server holds a secret password ("Client Secret") 
+  hidden from the world. But Single Page Applications run directly inside the 
+  student's browser. If you put a Client Secret in React code, anyone can right-click 
+  and "Inspect Element" to steal it!
+  PKCE solves this: when you click login, your browser creates a temporary random 
+  code challenge on the fly, sends it to Microsoft, and receives a one-time 
+  authorization code. Even if a hacker monitors your network, they cannot steal 
+  your session!
+* Real-World Analogy:
+  Imagine a secret handshake where you generate a unique random password in your 
+  head that only works once and expires in 30 seconds.
+
+--------------------------------------------------------------------------------
+F) PASSWORDLESS STUDENT ID + 6-DIGIT OTP FLOW
+--------------------------------------------------------------------------------
+* What is it?
+  Our CapStone requirement specifically dictates: "Students log in via Student ID 
+  + OTP flow, ensuring no passwords are stored."
+* Why is this better than traditional passwords?
+  - 80% of data breaches happen due to reused, weak, or leaked passwords.
+  - Students often forget passwords right before an exam.
+  - By asking for Student Roll Number + College Domain and dispatching a temporary 
+    6-digit numeric OTP to their verified university inbox, we achieve true 
+    zero-trust, passwordless security.
+* Real-World Analogy:
+  Like Google or your mobile banking app sending an SMS/Email passcode to verify it 
+  is really you before transferring money.
+
+--------------------------------------------------------------------------------
+G) CLSX + TAILWIND-MERGE (`cn` HELPER)
+--------------------------------------------------------------------------------
+* What is it?
+  A small helper function located in `src/utils/cn.js`.
+* Why is it essential?
+  Suppose a custom Button has a default padding of `px-4`. If you use the Button 
+  elsewhere and pass `className="px-8"`, plain JavaScript creates `"px-4 px-8"`. 
+  Because both classes have identical CSS priority, the browser might ignore your 
+  `px-8`! `tailwind-merge` knows Tailwind rules and automatically replaces `px-4` 
+  with `px-8` cleanly.
+
+--------------------------------------------------------------------------------
+H) LUCIDE REACT
+--------------------------------------------------------------------------------
+* What is it?
+  An open-source library providing over 1,000 clean, consistent SVG icons as React 
+  components.
+* Why do we use it?
+  Instead of heavy images or messy font-icons, Lucide icons (like `<ShieldCheck />`, 
+  `<Lock />`, `<GraduationCap />`) are sharp on all screens, support Tailwind colors 
+  directly, and load with near-zero bundle size.
+
+
+================================================================================
+4. COMPREHENSIVE TOUR OF EVERY FILE CREATED IN PHASE 1
+================================================================================
+
+Below is the file tree of what Muwahid built on the `muwahid` branch:
+
+```
+src/
+├── utils/
+│   └── cn.js                          -> Merges Tailwind classes safely
+├── theme/
+│   └── designTokens.js                -> Color palette, elevations, typography
+├── features/
+│   └── auth/
+│       ├── types/
+│       │   └── authTypes.js           -> Roles (STUDENT, TEACHER, etc.) & colleges
+│       ├── hooks/
+│       │   ├── useOtpTimer.js         -> 60-second OTP countdown and resend hook
+│       │   └── useAuthMock.js         -> Auth state manager & adapter for Nikita
+│       └── components/
+│           ├── AuthHero.jsx           -> Left branded panel with trust metrics
+│           ├── EntraIdButton.jsx      -> Official Microsoft Entra ID SSO button
+│           ├── LoginForm.jsx          -> Student OTP tab + Entra ID tab
+│           ├── OtpVerificationForm.jsx-> 6-digit OTP entry with auto-fill demo
+│           ├── RegisterForm.jsx       -> Student profile onboarding form
+│           └── RoleBadgeSelector.jsx  -> Live role simulator pill
+├── components/
+│   ├── ui/
+│   │   ├── Spinner.jsx                -> Animated loading spinner
+│   │   ├── Button.jsx                 -> Primary, secondary, outline, microsoft buttons
+│   │   ├── Input.jsx                  -> Accessible text inputs with error states
+│   │   ├── Select.jsx                 -> Dropdown selector for colleges/departments
+│   │   ├── OtpInput.jsx               -> 6-box auto-focus OTP input with paste support
+│   │   ├── Card.jsx                   -> Compound glassmorphic card components
+│   │   ├── Badge.jsx                  -> Status pills with animated ping dots
+│   │   ├── Alert.jsx                  -> Contextual error/success/warning banners
+│   │   ├── Modal.jsx                  -> Accessible dialog overlay with Esc key listener
+│   │   └── Tabs.jsx                   -> Accessible tab switcher (List, Trigger, Content)
+│   └── common/
+│       ├── BrandLogo.jsx              -> Shield + gradient SaaS branding logo
+│       ├── Header.jsx                 -> Top bar with live security indicators
+│       └── Footer.jsx                 -> Enterprise attribution & architecture notes
+├── layouts/
+│   ├── AuthLayout.jsx                 -> Split-screen layout (Hero left, Card right)
+│   └── DashboardLayoutPreview.jsx     -> Post-login dashboard view for each role
+├── index.css                          -> Tailwind v4 imports, dark canvas, glow effects
+├── vite.config.js                     -> Vite 8 config with @tailwindcss/vite plugin
+└── App.jsx                            -> Main entry point & interactive test harness
+```
+
+--------------------------------------------------------------------------------
+DETAILED BREAKDOWN OF KEY FILES:
+--------------------------------------------------------------------------------
+
+1. `src/utils/cn.js`:
+   Combines `clsx` and `tailwind-merge` into a single export `cn(...inputs)`. 
+   Used across all UI components for clean conditional class merging.
+
+2. `src/theme/designTokens.js`:
+   Central source of truth for design tokens:
+   - Deep canvas background: `#0A0D14`
+   - Glassmorphic card surfaces: `#111625`
+   - Brand gradients: Indigo (`#6366F1`) to Purple (`#9333EA`) to Cyan (`#06B6D4`)
+   - Accessible WCAG AA focus rings and status colors.
+
+3. `src/features/auth/types/authTypes.js`:
+   Exports constants for user roles:
+   - `STUDENT`: Takes tests, plays cognitive games, views study plan.
+   - `TEACHER`: Reviews AI drafts, monitors live exams, reads heatmaps.
+   - `INSTITUTION_ADMIN`: Bulk CSV upload, invites teachers, department analytics.
+   - `SUPER_ADMIN`: Manages multi-tenant colleges and platform health.
+   Also includes mock university tenants (MIT, Stanford, IIT Bombay, BITS Pilani).
+
+4. `src/components/ui/OtpInput.jsx`:
+   A high-end 6-digit input component:
+   - Renders 6 separate input boxes.
+   - Auto-focuses the first box on load.
+   - Automatically jumps to the next box when a number is typed.
+   - Automatically jumps back on Backspace.
+   - Supports clipboard paste (pasting "123456" distributes one digit into each box).
+   - Only accepts numbers (`inputMode="numeric"`).
+
+5. `src/components/ui/Button.jsx`:
+   Supports 6 production variants (`primary`, `secondary`, `outline`, `ghost`, 
+   `microsoft`, `danger`). Includes built-in spinner when `isLoading={true}` and 
+   slots for left/right icons.
+
+6. `src/features/auth/components/AuthHero.jsx`:
+   The left half of the desktop login view. Displays the PlacePrep Secure branding, 
+   a high-impact problem statement ("Bridge the gap between academic curricula and 
+   top-tier MNC hiring"), and four feature cards explaining:
+   - Multi-Format Assessments (VS Code Monaco editor)
+   - Gamified Cognitive Rounds (Accenture/Capgemini style)
+   - Granular Topic-Level Heatmaps (Cross-exam SQL aggregations)
+   - Ephemeral Sandbox Execution (Isolated gVisor containers)
+
+7. `src/features/auth/components/LoginForm.jsx`:
+   Provides two distinct tabs:
+   - Tab 1: Student Portal (Passwordless OTP). User chooses college and enters Roll No.
+   - Tab 2: Faculty & Admin (Microsoft Entra ID). Displays the official Microsoft 
+     brand button and tenant hint input.
+
+8. `src/features/auth/components/OtpVerificationForm.jsx`:
+   Step 2 of student login. Shows the student ID, masked college email, the 6-digit 
+   OtpInput, a 60-second cooldown timer, a "Resend Passcode" button, and a handy 
+   "Demo Auto-Fill (123456)" button for effortless grading.
+
+9. `src/layouts/DashboardLayoutPreview.jsx`:
+   Shows what the user sees once logged in. Dynamically changes based on whether 
+   the logged-in user is a Student, Teacher, College Admin, or Super Admin, showcasing 
+   their upcoming Phase 2, 3, and 4 modules.
+
+10. `src/App.jsx`:
+    The central coordinator. Manages the active step (`LOGIN` -> `OTP_VERIFICATION` 
+    -> `AUTHENTICATED` or `REGISTER`), connects to `useAuthMock`, and includes the 
+    top "Simulate Role" testing pill.
+
+
+================================================================================
+5. HOW EVERYTHING WORKS STEP-BY-STEP (THE USER FLOW)
+================================================================================
+
+Flow A: The Student Sign-In Journey (Passwordless)
+--------------------------------------------------------------------------------
+1. Student opens the web app. They see the split-screen layout with PlacePrep 
+   branding on the left and the Login card on the right.
+2. In the "Student Portal" tab, they select their college (e.g., "MIT Institute of Technology") 
+   and type their Student ID (e.g., "2024CS108"). (Or click "Demo Auto-Fill ID").
+3. They click "Request One-Time Passcode".
+4. The card transitions to Step 2: "Verify One-Time Passcode". A 60-second timer 
+   starts counting down.
+5. The student enters the 6-digit code (e.g., `123456`).
+6. The app verifies the OTP, generates a secure session token, and transitions 
+   directly into the Student Assessment Portal!
+
+Flow B: The Faculty & Admin Journey (Microsoft Entra ID SSO)
+--------------------------------------------------------------------------------
+1. A Professor or College Dean opens PlacePrep.
+2. They click the "Faculty & Admin" tab.
+3. They enter their college domain hint (e.g., "mit.edu") and click 
+   "Sign in with Microsoft Entra ID".
+4. An OAuth2 + PKCE popup handshake authenticates the faculty member via Microsoft.
+5. The platform extracts the user's role and immediately directs them to the 
+   Teacher Proctoring Dashboard or Institution Admin Panel.
+
+Flow C: Testing Any Role in 1 Click (The Evaluator Bar)
+--------------------------------------------------------------------------------
+At the top of the screen, an interactive role bar ("Simulate Role:") allows you 
+to instantly toggle between:
+  - [Student] -> Previews student test cards and AI study plans.
+  - [Teacher / Faculty] -> Previews live anti-cheat monitor and topic heatmaps.
+  - [College Admin] -> Previews CSV student onboarding and department metrics.
+  - [Super Admin] -> Previews multi-tenant management and cloud infrastructure health.
+
+
+================================================================================
+6. HOW TEAMMATES CONNECT THEIR WORK
+================================================================================
+Muwahid's design system and UI are built with strict decoupling so other teammates 
+can plug their work in with zero friction:
+
+* For NIKITA (Redux & MSAL Lead):
+  - In `src/features/auth/hooks/useAuthMock.js`, Muwahid created exact adapter 
+    signatures: `requestOtp`, `verifyOtp`, `loginWithEntraId`, `registerStudent`.
+  - Nikita simply replaces the mock delays inside this hook with:
+    `dispatch(studentLoginThunk({ studentId, otp }))` or MSAL's `instance.loginPopup()`.
+  - The UI components will not need to change a single line of code!
+
+* For KAIF (Backend Express & Prisma Lead):
+  - In Phase 1 Backend, Kaif creates `POST /api/auth/student-otp` and `POST /api/auth/verify-otp`.
+  - The payloads (`{ studentId, tenantId, otp }`) already match Kaif's Zod schemas.
+
+* For ATANU & AYAN (DevOps & CI/CD):
+  - `npm run build` generates a standalone, hyper-optimized static bundle in `/dist` 
+    that Azure Static Web Apps (Free Tier) deploys automatically via GitHub Actions.
+
+
+================================================================================
+7. HOW TO RUN, TEST, AND VERIFY LOCALLY
+================================================================================
+To run this project on any machine:
+
+1. Clone or checkout the `muwahid` branch:
+   `git checkout muwahid`
+
+2. Install dependencies:
+   `npm install`
+
+3. Run the development server:
+   `npm run dev`
+   (Open http://localhost:5173 in your browser)
+
+4. Run the production build test:
+   `npm run build`
+   (Compiles the entire application into optimized static assets in under 1 second)
+
+5. Run code linting:
+   `npm run lint`
+   (Verifies all React 19 standards, imports, and accessibility attributes pass)
+
+================================================================================
+                              END OF GUIDE
+================================================================================

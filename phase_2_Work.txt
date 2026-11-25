@@ -1,0 +1,530 @@
+================================================================================
+           PLACEPREP SECURE — PHASE 2 DEVELOPMENT & ARCHITECTURE GUIDE
+================================================================================
+Target Branch: muwahid
+Lead Frontend Architect & UI/UX Developer: Muwahid
+Project Objective: Core Assessment Engine & Multi-Format Evaluation
+Target Audience: Complete Beginners, Evaluators, and Engineering Teammates
+================================================================================
+
+
+--------------------------------------------------------------------------------
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1. The Problem Phase 2 Solves (Beyond Basic MCQ Sites)
+2. Phase 2 Goal & Responsibility Breakdown (Muwahid vs. Teammates)
+3. Technologies & React Patterns Explained for Complete Beginners
+   (What It Is, Why We Use It, Real-World Analogy, and Use Cases)
+4. Comprehensive Tour of Every File Created or Updated in Phase 2
+5. How Everything Works Step-by-Step (The End-to-End Phase 2 Flow)
+6. How Teammates (Nikita, Kaif, Atanu, Ayan) Connect Their Work
+7. How to Run, Test, and Verify This Project Locally
+
+
+================================================================================
+1. THE PROBLEM PHASE 2 SOLVES (BEYOND BASIC MCQ SITES)
+================================================================================
+In Phase 1, we built the "Front Door" of PlacePrep Secure: secure passwordless
+Student ID + OTP login, Microsoft Entra ID SSO, design tokens, and role-based
+dashboards.
+
+Once a student logs in, they need to actually TAKE realistic corporate tests.
+Traditional college practice sites fail students because they only show plain
+Multiple Choice Questions (MCQs) on a basic web page. Modern hiring rounds at
+TCS, Accenture, and Capgemini test candidates across multiple real-world formats:
+
+  1. Conceptual & Code-Reading MCQs (Single-choice and Multi-select)
+  2. Simulation Coding (Story-based engineering problems solved in a VS Code-like
+     split-screen IDE instead of plain text boxes)
+  3. SQL Query Tasks (Exploring real database schemas and writing SQL queries)
+  4. UI Modification Tasks (Reading design acceptance criteria and updating
+     React/Tailwind UI components with a live preview)
+
+Phase 2 builds the entire distraction-free, production-grade exam interface for
+these four evaluation formats, ready to plug into Nikita's Redux/Monaco work
+and Kaif's asynchronous submission backend.
+
+
+================================================================================
+2. PHASE 2 GOAL & RESPONSIBILITY BREAKDOWN
+================================================================================
+Phase 2 is titled: "Core Assessment Engine & Multi-Format Evaluation".
+
+Team Roles in Phase 2:
+--------------------------------------------------------------------------------
+* MUWAHID (Frontend UI/UX & Layout Architect — Implemented on `muwahid` branch):
+  - Reusable Split-Screen, ProgressBar, and CodeBlock UI primitives
+  - Distraction-free Assessment Shell (`AssessmentLayout`)
+  - Exam Header (progress bar, server-timer slot, question palette toggle)
+  - Collapsible Question Navigator (status filters, review/answered legend)
+  - MCQ Layout (single/multi-select, keyboard shortcuts 1-4, code snippets)
+  - Simulation Story Layout (story brief, I/O specs, constraints, sample cases)
+  - SQL Task Layout (interactive PostgreSQL schema & sample data table explorer)
+  - UI Task Layout (acceptance checklist, tokens, live safe UI preview)
+  - Right-pane `WorkspaceShell` with plug-and-play `renderEditor` slot for Monaco
+    and a simulated Upstash QStash / Sandbox execution console
+  - Decoupled adapter hook (`useAssessmentWorkspace.js`) & domain types
+  - Student portal launch wiring (`DashboardLayoutPreview.jsx`, `App.jsx`)
+
+* NIKITA (Frontend State & Monaco Integration):
+  - Installs & wires `@monaco-editor/react` into Muwahid's `renderEditor` slot
+  - Sets up Redux Toolkit (`activeExamSlice`) and connects via `workspace` prop
+  - Connects live server-synced countdown timer via `timerSlot` / props
+
+* KAIF (Backend Node.js + Prisma + Upstash QStash):
+  - Assessment CRUD & Submission APIs
+  - Prisma `QuestionType` enum (`MCQ`, `SIMULATION`, `UI_TASK`, `SQL_TASK`,
+    `GAMIFIED`)
+  - Upstash QStash queuing & Idempotency middleware
+
+* PANKAJ, ATANU & AYAN (AI Generation, Cloud Messaging & Integration Tests):
+  - FastAPI / Celery / LangChain + Groq multi-format question generation
+  - Upstash QStash + Dead Letter Queue (DLQ) + MongoDB Atlas setup
+  - Integration tests verifying all question formats submit properly
+
+
+================================================================================
+3. TECHNOLOGIES & PATTERNS EXPLAINED FOR COMPLETE BEGINNERS
+================================================================================
+
+--------------------------------------------------------------------------------
+A) SPLIT-SCREEN RESIZABLE PANES & POINTER EVENTS (`SplitPane.jsx`)
+--------------------------------------------------------------------------------
+* What is it?
+  A layout where the screen is split into two side-by-side panels: the Problem
+  Description on the left, and the Coding/SQL/UI Workspace on the right, with a
+  draggable vertical bar in the middle.
+* How does dragging work under the hood?
+  - When you press the mouse/touch down on the middle handle (`onPointerDown`),
+    React sets `isDragging = true`.
+  - A browser listener (`window.addEventListener('pointermove', ...)`) tracks
+    your mouse's X-coordinate (`clientX`) relative to the container's bounding
+    box (`containerRef.current.getBoundingClientRect()`).
+  - It converts that pixel position into a percentage and saves it into a CSS
+    variable (`--split-left-width`), clamped safely between 28% and 68% so
+    neither side disappears!
+  - On smaller screens (tablets/phones under `1024px`), side-by-side panes
+    would be too narrow to read, so `SplitPane` automatically transforms into
+    two clean tabs: "Problem Brief" and "Interactive Workspace".
+* Real-World Analogy:
+  Like the adjustable divider between the folder sidebar and message pane in
+  Microsoft Outlook or VS Code—you can slide it wider to read a long story,
+  double-click to reset, or collapse it when coding full-screen.
+* Use Cases:
+  Coding exams (LeetCode, HackerRank), SQL playgrounds, email clients, and
+  documentation + live preview editors.
+
+--------------------------------------------------------------------------------
+B) REACT HOOKS: `useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`
+--------------------------------------------------------------------------------
+* What are they?
+  Built-in React functions ("hooks") that let components remember data, run
+  setup/cleanup logic, or optimize performance:
+  - `useState`: Remembers changing data (e.g., which question you are on, or
+    which MCQ option you clicked). When state changes, React updates the screen.
+  - `useEffect`: Runs side-effects such as listening for keyboard keys (`1`–`4`
+    on MCQs) or running the countdown timer every 1,000ms, and cleans them up
+    when you leave the screen so there are no memory leaks.
+  - `useRef`: Holds a direct reference to a DOM element (used in `SplitPane` to
+    measure the container's width in pixels) without causing re-renders.
+  - `useCallback`: Freezes a function's identity across renders so child
+    components and event listeners don't needlessly re-subscribe.
+  - `useMemo`: Caches expensive calculations (like filtering the Question
+    Navigator list or counting answered/flagged questions) and only
+    recalculates when the underlying answers actually change.
+* Real-World Analogy:
+  `useState` is a whiteboard you update; `useRef` is a tape measure attached to
+  the wall; `useMemo` is writing down the total on a sticky note so you don't
+  have to re-add the column every time someone walks into the room.
+
+--------------------------------------------------------------------------------
+C) THE "SLOT & ADAPTER" ARCHITECTURE PATTERN
+--------------------------------------------------------------------------------
+* What is it?
+  Instead of hardcoding Redux or the heavy Monaco Editor library inside every
+  UI file, Muwahid designed `AssessmentLayout` and `WorkspaceShell` with clean
+  "plug sockets" (props like `renderEditor`, `timerSlot`, and `workspace`) and a
+  self-contained mock hook (`useAssessmentWorkspace.js`).
+* Why do senior React engineers do this?
+  1. Team members don't block each other: Muwahid can finish and test the full
+     UI while Nikita builds Redux + Monaco in parallel.
+  2. Zero UI rewrites: When Nikita is ready, she passes her `<Editor />` into
+     `renderEditor` and her Redux state into `workspace`—zero JSX layouts break!
+  3. Easy testing: Evaluators can test the entire exam flow right now without
+     needing backend APIs running.
+* Real-World Analogy:
+  Building a house with standard wall electrical outlets. You can test the
+  wiring with a basic lamp today, and tomorrow plug in a 4K TV without tearing
+  down the drywall.
+
+--------------------------------------------------------------------------------
+D) MONACO EDITOR SLOT & FALLBACK CODE EDITOR (`WorkspaceShell.jsx`)
+--------------------------------------------------------------------------------
+* What is Monaco Editor?
+  Monaco is the open-source code editor engine that powers Visual Studio Code
+  (VS Code). It gives syntax coloring, bracket matching, and auto-complete.
+* How does `WorkspaceShell.jsx` work right now?
+  - If Nikita passes a `renderEditor` prop, `WorkspaceShell` mounts her Monaco
+    Editor inside a zero-overflow flex container.
+  - If `renderEditor` is not passed yet (like right now in Phase 2 preview),
+    `WorkspaceShell` displays `FallbackCodeEditor`: a VS Code-styled dark
+    editor with synchronized line numbers, filename tab (`solution.py`,
+    `analytics_query.sql`, `CandidateReadinessCard.jsx`), and Tab-key 2-space
+    indentation support!
+* Use Cases:
+  Online IDEs, technical interviews, SQL consoles, and coding bootcamps.
+
+--------------------------------------------------------------------------------
+E) MULTI-FORMAT ASSESSMENT ENGINE (`MCQ`, `SIMULATION`, `SQL_TASK`, `UI_TASK`)
+--------------------------------------------------------------------------------
+* What are the 4 Phase 2 formats in PlacePrep Secure?
+  1. `MCQ` (Multiple Choice): Supports both single-answer (`radio`) and
+     multi-select (`checkbox`) questions, formatted code snippets, hints, and
+     keyboard shortcuts `1`–`4`.
+  2. `SIMULATION` (Story-Based Coding): Mimics real corporate engineering
+     scenarios (e.g., building a payment gateway rate limiter), complete with
+     business context, Input/Output rules, constraints, sample cases, and
+     language switching (`Python 3.11`, `Node.js 20`, `C++ 17`, `Java 17`).
+  3. `SQL_TASK` (Database Querying): Gives the student an interactive
+     PostgreSQL Schema Explorer showing table columns, Primary Keys (`PK`),
+     Foreign Keys (`FK`), and sample data rows alongside a SQL editor and a
+     rendered query result table.
+  4. `UI_TASK` (Embedded UI Modification): Shows refactoring instructions,
+     target design tokens, an auto-updating Acceptance Criteria Checklist, and
+     a toggleable `Code | Split | Preview` viewport.
+* Why store all 4 under one `AssessmentLayout`?
+  A real placement test mixes MCQs, coding, and SQL in one timed exam. Switching
+  between questions updates only the inner workspace smoothly without reloading
+  the page or losing your answers in previous questions!
+
+--------------------------------------------------------------------------------
+F) SERVER-AUTHORITATIVE TIMERS (ANTI-TIME-CHEAT CONCEPT)
+--------------------------------------------------------------------------------
+* What is it?
+  A countdown clock (`MM:SS` or `HH:MM:SS`) whose official deadline lives on the
+  backend server (`serverDeadlineIso`), not on the student's laptop clock.
+* Why do we use it?
+  If an exam trusted the student's browser clock, a student could turn their
+  Windows clock back by 2 hours to get unlimited exam time! In production, the
+  server calculates the true deadline and rejects late submissions.
+* How Phase 2 UI handles it:
+  `AssessmentHeader.jsx` displays the remaining time (turning amber under 5
+  minutes and pulsing red under 1 minute) and accepts an optional `timerSlot`
+  prop so Nikita can wire live server-synced ticks cleanly.
+
+--------------------------------------------------------------------------------
+G) ASYNC QUEUEING (UPSTASH QSTASH) & EPHEMERAL SANDBOXES
+--------------------------------------------------------------------------------
+* What happens when a student clicks "Run Sample Cases" or "Submit Exam"?
+  Running untrusted student code (which might contain infinite loops or hacks)
+  directly inside the main Node.js web server would freeze or crash the website
+  for everyone!
+  Instead, PlacePrep Secure uses an asynchronous pipeline:
+  1. `QUEUED`: Node.js saves the submission in PostgreSQL and sends a job ticket
+     to **Upstash QStash** (a cloud message queue).
+  2. `RUNNING`: A separate Python worker picks up the ticket and spins up an
+     isolated **Ephemeral Docker Container** with zero internet access, strict
+     CPU/RAM limits (256 MB), and a < 2-second timeout.
+  3. `EVALUATED`: Output (`stdout`) and pass/fail results return safely, and
+     the container is destroyed.
+* How Phase 2 UI visualizes this:
+  In `WorkspaceShell.jsx`, clicking "Run Sample Cases" / "Run Query" /
+  "Verify UI" walks through realistic `QStash Queued` -> `Running in Sandbox`
+  -> `Evaluated` states inside the collapsible Execution Console tray, and
+  submitting the exam shows a receipt with a simulated `Submission Receipt ID`
+  and `Async Queue Message ID`.
+* Real-World Analogy:
+  At a busy coffee shop, the cashier (Node.js API) hands you an order ticket
+  (QStash) and immediately helps the next customer, while baristas in the back
+  (Python/Docker workers) brew drinks safely without blocking the front line.
+
+--------------------------------------------------------------------------------
+H) SAFE ZERO-EVAL UI PREVIEW (`SafeUiTaskPreview` in `WorkspaceShell.jsx`)
+--------------------------------------------------------------------------------
+* What is it?
+  When a student edits React/Tailwind code in Question 5 (`UI_TASK`), they want
+  to see a visual preview of their card right away.
+* Why don't we just run `eval()` on the student's code?
+  Executing arbitrary user-typed JavaScript strings with `eval()` or injecting
+  unsanitized HTML creates Cross-Site Scripting (XSS) security holes and can
+  crash the entire browser tab if the student has a typo mid-keystroke.
+* How Muwahid solved it safely:
+  `SafeUiTaskPreview` inspects the student's code buffer safely as plain text
+  for required design/accessibility tokens (`bg-slate-900`, `emerald`,
+  `progressbar`, `indigo`) and renders a clean, controlled React preview card
+  that reacts immediately as you type—with zero crash risk!
+
+--------------------------------------------------------------------------------
+I) WEB ACCESSIBILITY (`aria-*` ATTRIBUTES) & KEYBOARD SHORTCUTS
+--------------------------------------------------------------------------------
+* What is it?
+  HTML accessibility attributes (`role="progressbar"`, `role="separator"`,
+  `role="radiogroup"`, `role="checkbox"`, `role="dialog"`, `aria-checked`,
+  `aria-valuenow`) ensure screen readers, keyboard-only users, and automated
+  testing tools (like Playwright in Phase 6) can understand and control every
+  widget cleanly.
+* Example in Phase 2:
+  In `McqQuestionLayout.jsx`, pressing keys `1`, `2`, `3`, or `4` selects
+  Options A–D automatically (while safely ignoring keystrokes if you're typing
+  inside a text input or when a confirmation modal is open!).
+
+--------------------------------------------------------------------------------
+J) `TopicTag` METADATA (`Subject` + `Topic`)
+--------------------------------------------------------------------------------
+* What is it?
+  Every question carries structured tags such as `Subject: DSA` / `TopicTag:
+  Graphs & BFS` or `Subject: Databases` / `TopicTag: SQL Aggregations`, shown
+  clearly in `QuestionMetaHeader.jsx`.
+* Why is it important in Phase 2?
+  It lays the data foundation for Phase 4's Teacher Heatmap! Instead of just
+  saying "Student got 60%", the backend aggregates question correctness by
+  `TopicTag` across all exams to pinpoint exact weak topics.
+
+
+================================================================================
+4. COMPREHENSIVE TOUR OF EVERY FILE CREATED OR UPDATED IN PHASE 2
+================================================================================
+
+Below is the file tree of all Phase 2 frontend files on branch `muwahid`:
+
+```text
+src/
+├── components/
+│   ├── common/
+│   │   ├── Header.jsx                        (Updated: "Phase 2 Ready" pill)
+│   │   └── Footer.jsx                        (Updated: "Phase 2" label)
+│   └── ui/
+│       ├── CodeBlock.jsx                     (NEW: Monospace snippet + copy)
+│       ├── ProgressBar.jsx                   (NEW: Exam completion bar)
+│       └── SplitPane.jsx                     (NEW: Resizable split-screen)
+├── features/
+│   └── assessment/
+│       ├── index.js                          (NEW: Clean barrel exports)
+│       ├── types/
+│       │   └── assessmentTypes.js            (NEW: Enums, languages, statuses)
+│       ├── data/
+│       │   └── mockAssessmentData.js         (NEW: 5-question MNC mock exam)
+│       ├── hooks/
+│       │   └── useAssessmentWorkspace.js     (NEW: State & async mock adapter)
+│       └── components/
+│           ├── QuestionMetaHeader.jsx        (NEW: Shared TopicTag/Marks bar)
+│           ├── AssessmentHeader.jsx          (NEW: Distraction-free exam bar)
+│           ├── QuestionNavigator.jsx         (NEW: Filterable question palette)
+│           ├── AssessmentFooterBar.jsx       (NEW: Flag, Reset, Prev/Next)
+│           ├── McqQuestionLayout.jsx         (NEW: Split MCQ + keys 1-4)
+│           ├── SimulationStoryLayout.jsx     (NEW: Story, I/O, sample cases)
+│           ├── SqlTaskLayout.jsx             (NEW: Schema & sample row viewer)
+│           ├── UiTaskLayout.jsx              (NEW: Brief & live checklist)
+│           ├── WorkspaceShell.jsx            (NEW: Editor slot, preview, console)
+│           ├── SubmitConfirmModal.jsx        (NEW: Pre-submit counts dialog)
+│           └── AssessmentSubmittedView.jsx   (NEW: Post-submit QStash receipt)
+├── layouts/
+│   ├── AssessmentLayout.jsx                  (NEW: Top-level Phase 2 exam shell)
+│   └── DashboardLayoutPreview.jsx            (Updated: Launch Exam button)
+└── App.jsx                                   (Updated: 'DASHBOARD'|'ASSESSMENT')
+```
+
+--------------------------------------------------------------------------------
+DETAILED FILE-BY-FILE BREAKDOWN:
+--------------------------------------------------------------------------------
+
+1. `src/components/ui/CodeBlock.jsx`:
+   Displays read-only formatted code or `stdin`/`stdout` test blocks with a
+   header bar, optional line numbers, and a one-click Copy button with visual
+   "Copied" confirmation.
+
+2. `src/components/ui/ProgressBar.jsx`:
+   Renders an accessible progress bar showing how many questions a student has
+   answered (`X of Y answered`) with smooth width animation.
+
+3. `src/components/ui/SplitPane.jsx`:
+   The centerpiece layout engine for Phase 2. Supports mouse/touch drag resizing,
+   keyboard arrow resizing, double-click width reset, collapse-left to
+   full-width workspace, and automatic mobile tab switching (`Problem Brief` vs
+   `Interactive Workspace`).
+
+4. `src/features/assessment/types/assessmentTypes.js`:
+   Defines `QUESTION_TYPES` (`MCQ`, `SIMULATION`, `UI_TASK`, `SQL_TASK`,
+   `GAMIFIED`), `DIFFICULTY_LEVELS`, `SUBMISSION_PIPELINE_STATES` (`IDLE`,
+   `QUEUED`, `RUNNING`, `EVALUATED`, `FAILED`), `QUESTION_STATUS`,
+   `QUESTION_TYPE_META`, and `SUPPORTED_LANGUAGES` (Python, Node.js, C++, Java).
+
+5. `src/features/assessment/data/mockAssessmentData.js`:
+   Provides `MOCK_ASSESSMENT` (`TCS NQT & Enterprise Full-Stack Assessment`),
+   containing 5 realistic questions:
+   - Q1 (`MCQ`, Single-Choice): Shortest Path Routing (Graphs & BFS + Python snippet)
+   - Q2 (`MCQ`, Multi-Select): Transactional Outbox & Idempotent Queuing
+   - Q3 (`SIMULATION`): FinEdge Gateway Sliding Window Burst Rate Limiter
+   - Q4 (`SQL_TASK`): Cross-Exam Topic Mastery Aggregation Query (`topic_tags` &
+     `assessment_results` tables with sample rows)
+   - Q5 (`UI_TASK`): Refactor Candidate Readiness Card for Accessibility
+
+6. `src/features/assessment/hooks/useAssessmentWorkspace.js`:
+   Manages active question index, per-question answers (including preserving
+   separate code drafts when switching between Python/JS/C++/Java!), flagged
+   questions, countdown seconds, simulated QStash dry-run execution, summary
+   statistics, and final submission receipt generation. Also exports
+   `hasQuestionResponse(question, answer)` so starter stubs don't falsely mark
+   unattempted questions as answered!
+
+7. `src/features/assessment/components/QuestionMetaHeader.jsx`:
+   Reusable header rendered inside all 4 question formats showing Question X/Y,
+   Type badge, Difficulty badge, Marks badge, Title, and `Subject` / `TopicTag`.
+
+8. `src/features/assessment/components/AssessmentHeader.jsx`:
+   Distraction-free exam top bar with Back/Exit preview button, Assessment
+   Title, Company Track badge, `ProgressBar`, color-coded countdown timer
+   (or custom `timerSlot`), Questions palette toggle, and "Submit Exam" button.
+
+9. `src/features/assessment/components/QuestionNavigator.jsx`:
+   Slide-in/collapsible Question Palette panel with filter buttons (`All`,
+   `Remaining`, `Flagged`), color-coded status tiles, and a clear status legend.
+
+10. `src/features/assessment/components/AssessmentFooterBar.jsx`:
+    Sticky bottom control bar for toggling "Mark for Review", resetting the
+    current response (`Clear / Reset`), and navigating (`Previous` / `Save &
+    Next` / `Review & Submit`).
+
+11. `src/features/assessment/components/McqQuestionLayout.jsx`:
+    Split-screen MCQ experience: Left side displays the question prompt,
+    optional code snippet, and context hint; Right side displays interactive
+    A/B/C/D option cards with `1`–`4` keyboard shortcuts.
+
+12. `src/features/assessment/components/SimulationStoryLayout.jsx`:
+    Left-pane narrative view for coding simulations with Sandbox Execution pills
+    (`< 2s`, `256 MB`, `No Egress`) and three sub-tabs: `Story Brief` (business
+    scenario + I/O format), `Samples` (public cases with Copy buttons and
+    walkthroughs), and `Constraints` (complexity & evaluation rubric).
+
+13. `src/features/assessment/components/SqlTaskLayout.jsx`:
+    Left-pane view for SQL tasks featuring the query objective, expected output
+    column chips, and an interactive Database Schema Explorer where each table
+    expands to show column names, types, `PK`/`FK` keys, and sample rows.
+
+14. `src/features/assessment/components/UiTaskLayout.jsx`:
+    Left-pane view for UI modification tasks featuring the refactoring brief,
+    target design token pills, and an Acceptance Checklist that lights up live
+    as required classes/attributes appear in your code.
+
+15. `src/features/assessment/components/WorkspaceShell.jsx`:
+    Right-pane workspace host for `SIMULATION`, `SQL_TASK`, and `UI_TASK`.
+    Provides language/mode toolbar, `renderEditor` Monaco slot (with VS Code-like
+    `FallbackCodeEditor`), `SafeUiTaskPreview` (with `Code | Split | Preview`
+    switcher on UI tasks), and the collapsible Execution & Verification Console.
+
+16. `src/features/assessment/components/SubmitConfirmModal.jsx`:
+    Modal dialog displaying Answered, Flagged, and Remaining counts plus a
+    warning if unanswered questions remain before locking in final submission.
+
+17. `src/features/assessment/components/AssessmentSubmittedView.jsx`:
+    Clean post-submission confirmation screen showing the simulated Submission
+    Receipt ID, Upstash QStash Message ID, answered counts, and navigation back
+    to the Student Dashboard or to retake the preview.
+
+18. `src/layouts/AssessmentLayout.jsx`:
+    Combines `AssessmentHeader`, `QuestionNavigator`, `SplitPane`, the 4
+    format layouts, `WorkspaceShell`, `AssessmentFooterBar`, `SubmitConfirmModal`,
+    and `AssessmentSubmittedView` into one cohesive page shell.
+
+19. `src/layouts/DashboardLayoutPreview.jsx` & `src/App.jsx`:
+    Added `activeView` (`'DASHBOARD' | 'ASSESSMENT'`) in `App.jsx` and a
+    **"Launch Assessment Engine"** / **"Open Phase 2 Exam UI"** action in the
+    Student view so evaluators can transition smoothly from Phase 1 Login ->
+    Student Dashboard -> Phase 2 Exam Workspace and back.
+
+
+================================================================================
+5. HOW EVERYTHING WORKS STEP-BY-STEP (THE USER FLOW)
+================================================================================
+
+1. Open the app and log in as a Student (either via Student ID + OTP `123456` or
+   by clicking **Student** in the top "Simulate Role" bar).
+2. On the Student Assessment Portal, click **"Launch Assessment Engine"** (or
+   **"Open Phase 2 Exam UI"** in the top session bar).
+3. You enter the distraction-free `AssessmentLayout`:
+   - **Q1 (Single-Choice MCQ):** Read the Python BFS snippet on the left; click
+     an option card on the right (or press `1`–`4` on your keyboard). Notice
+     the header progress bar updates to `1/5 Answered`.
+   - **Q2 (Multi-Select MCQ):** Select multiple valid checkboxes, or click
+     **"Mark for Review"** in the footer. Click **"Questions"** in the top-right
+     to open the Question Navigator palette and filter by `Flagged` or `Remaining`.
+   - **Q3 (Simulation Coding):** Drag the middle divider handle left/right to
+     resize the panes (or double-click to reset). Switch between `Story Brief`,
+     `Samples`, and `Constraints` tabs on the left. On the right, switch
+     languages (`Python 3.11`, `Node.js 20`, `C++ 17`, `Java 17`), edit code
+     (replacing the `TODO` stub), and click **"Run Sample Cases"** to watch the
+     simulated `QStash Queued` -> `Running in Sandbox` -> `Evaluated` console!
+   - **Q4 (SQL Task):** Expand `topic_tags` and `assessment_results` tables on
+     the left to inspect keys and sample rows. Add `GROUP BY` and `HAVING` logic
+     to the SQL query on the right and click **"Run Query"** to inspect the
+     returned PostgreSQL result table.
+   - **Q5 (UI Task):** Switch between `Code`, `Split`, and `Preview` modes on
+     the right. As you update the card classes (`bg-slate-900`, `emerald`,
+     `role="progressbar"`, `indigo`), watch both the left Acceptance Checklist
+     and the right Live Preview Card update immediately, then click **"Verify UI"**.
+4. Click **"Submit Exam"** in the header (or **"Review & Submit"** on the last
+   question) to review your summary counts in `SubmitConfirmModal`, confirm, and
+   view the `AssessmentSubmittedView` QStash receipt screen.
+
+
+================================================================================
+6. HOW TEAMMATES CONNECT THEIR WORK
+================================================================================
+
+* For NIKITA (Monaco Editor, Redux Toolkit & Server Timer Sync):
+  1. **Mount Monaco Editor:** Install `@monaco-editor/react` and pass
+     `renderEditor` into `<AssessmentLayout />`:
+     ```jsx
+     <AssessmentLayout
+       renderEditor={({ language, value, onChange }) => (
+         <Editor
+           height="100%"
+           theme="vs-dark"
+           language={language}
+           value={value}
+           onChange={(next) => onChange(next ?? '')}
+         />
+       )}
+     />
+     ```
+  2. **Wire Redux (`activeExamSlice`) & Server Timer:** Pass your Redux-backed
+     adapter object into `<AssessmentLayout workspace={reduxWorkspace} />` and
+     your server-synced clock badge into `timerSlot={<ServerTimerBadge />}`.
+     None of Muwahid's UI layouts need to be modified!
+
+* For KAIF (Backend Node.js + Prisma + Upstash QStash):
+  - Assessment question payloads follow `QUESTION_TYPES` (`MCQ`, `SIMULATION`,
+    `UI_TASK`, `SQL_TASK`, `GAMIFIED`) and carry `topicTag: { subject, topic }`.
+  - Dry-run & final submission states map directly to
+    `SUBMISSION_PIPELINE_STATES` (`IDLE`, `QUEUED`, `RUNNING`, `EVALUATED`, `FAILED`).
+
+* For ATANU & AYAN (DevOps & Integration Testing):
+  - Zero extra heavy dependencies were added in Muwahid's Phase 2 UI shell,
+    keeping `npm run build` fast (`< 1 second`) for Azure Static Web Apps CI/CD.
+
+
+================================================================================
+7. HOW TO RUN, TEST, AND VERIFY LOCALLY
+================================================================================
+
+1. Ensure you are on the `muwahid` branch:
+   `git checkout muwahid`
+
+2. Install dependencies (if not already installed):
+   `npm install`
+
+3. Start the local dev server:
+   `npm run dev`
+   (Open http://localhost:5173 in your browser)
+
+4. Run ESLint verification:
+   `npm run lint`
+   (Verifies zero syntax, React Hooks, or accessibility lint issues)
+
+5. Run production build check:
+   `npm run build`
+   (Verifies Vite + Tailwind CSS v4 bundle compiles cleanly into `dist/`)
+
+================================================================================
+                              END OF PHASE 2 GUIDE
+================================================================================

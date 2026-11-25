@@ -1,0 +1,129 @@
+================================================================================
+              PLACEPREP SECURE — COMMANDS & SETUP GUIDE (use.txt)
+================================================================================
+Workspace: e:\Capstone\placement-react-web
+Branch: muwahid
+Current Scope Covered: Phase 1 (Auth & UI Foundation) + Phase 2 (Assessment UI)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. MAIN COMMANDS FIRST (RUN THESE IN TERMINAL FROM PROJECT ROOT)
+--------------------------------------------------------------------------------
+Open PowerShell or VS Code Terminal inside: `e:\Capstone\placement-react-web`
+
+  1) Install dependencies (run once, or after pulling package.json updates):
+     npm install
+
+  2) Start the app locally (MAIN COMMAND for daily development & demo):
+     npm run dev
+     -> Opens local server (typically http://localhost:5173)
+
+  3) Check code quality / linting (verifies React rules & zero unused imports):
+     npm run lint
+
+  4) Build production bundle (verifies app compiles cleanly into /dist):
+     npm run build
+
+  5) Preview the compiled production build locally:
+     npm run preview
+
+
+--------------------------------------------------------------------------------
+2. SECONDARY / GIT WORKFLOW COMMANDS
+--------------------------------------------------------------------------------
+  Check which branch you are on and what files changed:
+     git status
+
+  Switch to your working branch (`muwahid`):
+     git checkout muwahid
+
+  Stage and commit your Phase 1 & Phase 2 work:
+     git add .
+     git commit -m "Complete Phase 2 multi-format assessment layouts and docs"
+
+  Push your branch to GitHub:
+     git push origin muwahid
+
+
+--------------------------------------------------------------------------------
+3. HOW TO RUN & TEST THE APP STEP-BY-STEP (NO BACKEND NEEDED RIGHT NOW)
+--------------------------------------------------------------------------------
+Right now, Phase 1 and Phase 2 frontend screens work 100% standalone using built-in
+mock adapters (`useAuthMock.js` and `useAssessmentWorkspace.js`).
+
+  Step 1: Run `npm install` (if `node_modules` is missing), then `npm run dev`.
+  Step 2: Open the URL printed in your terminal (usually http://localhost:5173).
+  Step 3: Test Phase 1 (Authentication):
+          - Student Portal tab -> click "Demo Auto-Fill ID" (or type an ID)
+            -> Request OTP -> enter `123456` (or click Demo Auto-Fill) -> Verify.
+          - OR click any role pill in the top "Simulate Role" bar (`Student`,
+            `Teacher / Faculty`, `College Admin`, `Super Admin`).
+  Step 4: Test Phase 2 (Assessment Engine):
+          - Make sure active role is `Student`.
+          - Click "Launch Assessment Engine" (or "Open Phase 2 Exam UI").
+          - Test all 5 questions:
+            * Q1 & Q2 (MCQs): Click options or press keys `1`–`4`; try "Mark for Review".
+            * Q3 (Simulation Coding): Drag the center split divider, switch languages
+              (Python/Node.js/C++/Java), edit the `TODO` function, and click
+              "Run Sample Cases" to see the simulated QStash -> Sandbox console.
+            * Q4 (SQL Task): Expand PostgreSQL schema tables, edit SQL query with
+              `GROUP BY` + `HAVING`, and click "Run Query".
+            * Q5 (UI Task): Toggle `Code | Split | Preview` modes, update classes
+              (`bg-slate-900`, `emerald`, `role="progressbar"`, `indigo`), and
+              click "Verify UI".
+          - Click "Questions" to open the Question Navigator drawer, then click
+            "Submit Exam" to test the confirmation dialog and QStash receipt screen.
+
+
+--------------------------------------------------------------------------------
+4. WHAT EXTERNAL THINGS YOU NEED TO DO BY YOURSELF
+--------------------------------------------------------------------------------
+The React UI runs immediately on your laptop, but to connect the full production
+Capstone platform (across Phases 1–6 and teammate modules), you must set up the
+following outside this UI code:
+
+A) LOCAL MACHINE PREREQUISITES (NEEDED RIGHT NOW)
+   1. Node.js (v18 or v20+ LTS) & npm installed on Windows.
+   2. Git installed and logged into your GitHub account (`git push` access).
+   3. A modern browser (Chrome / Edge / Firefox) to view `localhost:5173`.
+
+B) FRONTEND PACKAGES & `.env` CONFIG (WHEN CONNECTING NIKITA'S & KAIF'S WORK)
+   Note: Do NOT commit real secrets or `.env` files to Git.
+   1. When Nikita wires Redux, Monaco Editor, Routing, and MSAL PKCE, install
+      the live frontend packages she needs (e.g. `@monaco-editor/react`,
+      `@reduxjs/toolkit`, `react-redux`, `react-router-dom`,
+      `@azure/msal-browser`, `@azure/msal-react`).
+   2. Create a local `.env.local` file once backend/auth URLs exist with keys for:
+      - Microsoft Entra ID Client ID & Tenant ID (for MSAL OAuth2 + PKCE)
+      - Node.js Backend API Base URL (Kaif's Express server)
+      - Socket.io Server URL (for Phase 3 live proctoring)
+
+C) SEPARATE BACKEND & AI SERVICES (BUILT OUTSIDE THIS REACT REPO)
+   1. Run/deploy Kaif's Node.js + Express + Prisma backend service (`POST /api/auth/*`,
+      `/api/assessments`, `/api/submissions`).
+   2. Run/deploy Pankaj's Python FastAPI + Celery + LangChain/Groq worker service.
+   3. Run/deploy Atanu's Ephemeral Docker Sandbox & Terraform infrastructure.
+
+D) EXTERNAL CLOUD ACCOUNTS, API KEYS & PORTAL SETUP (FOR LIVE DEPLOYMENT)
+   1. GitHub Repository & GitHub Actions Secrets:
+      - Configure CI/CD secrets in GitHub for deploying frontend/backend and
+        running the scheduled Agentic AI workflow.
+   2. Microsoft Azure Portal (Free-Tier Setup per Master Plan):
+      - Register an SPA app in **Microsoft Entra ID** and whitelist your
+        redirect URIs (`http://localhost:5173` and your Azure Static Web App URL).
+      - Provision **Azure Static Web Apps (Free)** for this React app.
+      - Provision **Azure App Service (F1 Free Tier)** for Node.js.
+      - Provision **Azure Container Apps** for Python worker / Docker sandbox.
+      - Provision **Azure PostgreSQL Flexible Server**, **Azure Blob Storage**,
+        **Azure Key Vault**, **Azure SQL** (Phase 4 reporting), and **Azure Monitor**.
+   3. Third-Party Free-Tier SaaS Accounts & API Keys:
+      - **Upstash Account**: Create **Upstash Redis** + **Upstash QStash** (with
+        Dead Letter Queue configured for failed jobs).
+      - **MongoDB Atlas**: Create Free M0 cluster for code submissions & logs.
+      - **Groq Console**: Generate Groq API key (LLaMA 3 AI generation & feedback).
+      - **Reddit Developer Portal**: Register Reddit API credentials (PRAW) for
+        Phase 3 Agentic AI scraping.
+      - **Resend**: Create Resend API key & verify sender domain for Phase 5
+        Welcome / Test Assigned transactional emails.
+================================================================================
