@@ -6,16 +6,16 @@ import {
   CheckCircle,
   AlertTriangle,
   Key,
+  Link2,
+  Wand2,
 } from 'lucide-react'
 import MonacoCodeEditor from '../editor/MonacoCodeEditor'
 import SplitPane from '../../ui/SplitPane'
 
 /**
  * SQL Task Workspace
- * Features:
- * - Interactive Schema Explorer (Tables, Columns, Primary/Foreign Keys, Sample Data)
- * - Monaco SQL Query Editor
- * - Live Query Execution Result Grid vs Expected Result Comparison
+ * Interactive Schema Explorer (PK/FK + sample tuples), Monaco SQL Editor,
+ * and live query result diff grid.
  */
 export const SqlTaskWorkspace = ({
   question,
@@ -25,15 +25,15 @@ export const SqlTaskWorkspace = ({
   onRunSql,
   assessmentId,
 }) => {
-  const currentQuery = answer?.query || question.starterQuery || ''
+  const currentQuery = answer?.query ?? (question.starterQuery || '')
   const [selectedTable, setSelectedTable] = useState(
-    question.schema?.[0]?.tableName || 'employees'
+    question.schema?.[0]?.tableName || 'employees',
   )
-  const [activeResultView, setActiveResultView] = useState('your_output') // 'your_output' | 'expected'
+  const [activeResultView, setActiveResultView] = useState('your_output')
 
   const isRunning = executionState?.isRunning || false
-  const sqlResult = executionState?.sqlResult || null
-  const error = executionState?.error || null
+  const sqlResult = executionState?.sqlResult || executionState || null
+  const error = executionState?.error || sqlResult?.error || null
 
   const handleQueryChange = (newQuery) => {
     onAnswerChange({ query: newQuery })
@@ -43,7 +43,14 @@ export const SqlTaskWorkspace = ({
     onAnswerChange({ query: question.starterQuery || '' })
   }
 
+  const handleLoadSolutionDev = () => {
+    if (question.referenceSolution) {
+      onAnswerChange({ query: question.referenceSolution })
+    }
+  }
+
   const handleExecute = () => {
+    setActiveResultView('your_output')
     if (onRunSql) {
       onRunSql({
         assessmentId,
@@ -57,8 +64,7 @@ export const SqlTaskWorkspace = ({
   const currentTableSampleRows = question.sampleData?.[selectedTable] || []
 
   const leftContent = (
-    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5">
-      {/* Header Tags */}
+    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5 exam-scroll">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
           <span className="px-2.5 py-1 bg-amber-50 text-amber-700 font-semibold rounded-lg text-xs">
@@ -76,15 +82,13 @@ export const SqlTaskWorkspace = ({
         </div>
       </div>
 
-      {/* Problem Title & Statement */}
       <div className="space-y-2">
         <h2 className="text-lg font-bold text-slate-900">{question.title}</h2>
-        <div className="text-sm text-slate-700 leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70">
+        <div className="text-sm text-slate-700 leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70 select-text">
           {question.problemStatement}
         </div>
       </div>
 
-      {/* Database Schema Explorer */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -93,7 +97,6 @@ export const SqlTaskWorkspace = ({
           </h3>
         </div>
 
-        {/* Table Selector Tabs */}
         <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
           {question.schema?.map((t) => (
             <button
@@ -112,13 +115,12 @@ export const SqlTaskWorkspace = ({
           ))}
         </div>
 
-        {/* Active Table Columns */}
         {currentTableSchema && (
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs select-text">
             <div className="bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600 border-b border-slate-200">
               {currentTableSchema.description || `Table: ${currentTableSchema.tableName}`}
             </div>
-            <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto">
+            <div className="divide-y divide-slate-100 max-h-40 overflow-y-auto">
               {currentTableSchema.columns.map((col) => (
                 <div
                   key={col.name}
@@ -126,8 +128,21 @@ export const SqlTaskWorkspace = ({
                 >
                   <div className="flex items-center space-x-2">
                     {col.isPk && (
-                      <span title="Primary Key">
-                        <Key className="w-3 h-3 text-amber-500" />
+                      <span
+                        title="Primary Key"
+                        className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded border border-amber-200"
+                      >
+                        <Key className="w-2.5 h-2.5" />
+                        PK
+                      </span>
+                    )}
+                    {col.isFk && (
+                      <span
+                        title="Foreign Key"
+                        className="inline-flex items-center gap-0.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1 rounded border border-indigo-200"
+                      >
+                        <Link2 className="w-2.5 h-2.5" />
+                        FK
                       </span>
                     )}
                     <span className="font-semibold text-slate-800">{col.name}</span>
@@ -139,13 +154,12 @@ export const SqlTaskWorkspace = ({
           </div>
         )}
 
-        {/* Sample Tuples / Rows */}
         {currentTableSampleRows.length > 0 && (
           <div className="space-y-1.5">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               Sample Tuples ({selectedTable})
             </span>
-            <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-xs select-text">
               <table className="w-full text-left text-xs font-mono">
                 <thead className="bg-slate-100 text-slate-600 text-[11px] uppercase">
                   <tr>
@@ -157,7 +171,7 @@ export const SqlTaskWorkspace = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {currentTableSampleRows.slice(0, 5).map((row, i) => (
+                  {currentTableSampleRows.slice(0, 6).map((row, i) => (
                     <tr key={i} className="hover:bg-slate-50">
                       {Object.values(row).map((val, j) => (
                         <td key={j} className="p-2 text-slate-700">
@@ -177,8 +191,7 @@ export const SqlTaskWorkspace = ({
 
   const rightContent = (
     <div className="h-full flex flex-col p-3 sm:p-4 bg-slate-900 gap-3 overflow-hidden">
-      {/* Monaco SQL Editor */}
-      <div className="flex-1 min-h-[320px] relative">
+      <div className="flex-1 min-h-[280px] relative">
         <MonacoCodeEditor
           language="sql"
           value={currentQuery}
@@ -186,39 +199,62 @@ export const SqlTaskWorkspace = ({
           onResetBoilerplate={handleResetQuery}
           availableLanguages={['sql']}
           headerExtra={
-            <button
-              type="button"
-              onClick={handleExecute}
-              disabled={isRunning}
-              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-md font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-            >
-              {isRunning ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Executing Query...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Execute Query</span>
-                </>
+            <div className="flex items-center gap-1.5">
+              {import.meta.env.DEV && question.referenceSolution && (
+                <button
+                  type="button"
+                  onClick={handleLoadSolutionDev}
+                  className="px-2 py-1 bg-cyan-950/70 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-700/60 rounded-md font-medium text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  title="Dev Only: Insert reference window-function query"
+                >
+                  <Wand2 className="w-3 h-3" />
+                  <span className="hidden sm:inline">Dev Solution</span>
+                </button>
               )}
-            </button>
+              <button
+                type="button"
+                onClick={handleExecute}
+                disabled={isRunning}
+                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-md font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              >
+                {isRunning ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Executing Query...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Execute Query</span>
+                  </>
+                )}
+              </button>
+            </div>
           }
         />
       </div>
 
       {/* SQL Results Drawer */}
-      <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col max-h-[250px]">
-        {/* Drawer Header */}
+      <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col max-h-[260px]">
         <div className="bg-slate-900/90 px-3.5 py-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
           <div className="flex items-center space-x-2">
             <TableIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="font-semibold text-slate-200">Query Result Grid</span>
-            {sqlResult?.matchesExpected && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> Output Matches Expected
-              </span>
+            {sqlResult?.rows?.length > 0 && !error && (
+              <>
+                <span className="text-[10px] font-mono text-slate-400">
+                  ({sqlResult.rows.length} rows • {sqlResult.executionTimeMs || 65}ms)
+                </span>
+                {sqlResult.matchesExpected ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Output Matches Expected
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                    Result Differs from Expected
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -248,66 +284,62 @@ export const SqlTaskWorkspace = ({
           </div>
         </div>
 
-        {/* Drawer Content */}
-        <div className="p-3 text-xs font-mono overflow-y-auto">
+        <div className="p-3 text-xs font-mono overflow-y-auto exam-scroll select-text">
           {error ? (
             <div className="text-rose-400 bg-rose-950/40 p-3 rounded-lg border border-rose-900 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           ) : activeResultView === 'expected' ? (
-            <div>
-              <table className="w-full text-left text-xs font-mono border border-slate-800">
-                <thead className="bg-slate-900 text-cyan-300 text-[11px] uppercase">
-                  <tr>
-                    {question.expectedResult?.columns?.map((col) => (
-                      <th key={col} className="p-2 border-b border-slate-800">
-                        {col}
-                      </th>
+            <table className="w-full text-left text-xs font-mono border border-slate-800">
+              <thead className="bg-slate-900 text-cyan-300 text-[11px] uppercase">
+                <tr>
+                  {question.expectedResult?.columns?.map((col) => (
+                    <th key={col} className="p-2 border-b border-slate-800">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-900 text-slate-300">
+                {question.expectedResult?.rows?.map((row, i) => (
+                  <tr key={i} className="hover:bg-slate-900/50">
+                    {question.expectedResult.columns.map((col) => (
+                      <td key={col} className="p-2">
+                        {String(row[col])}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-900 text-slate-300">
-                  {question.expectedResult?.rows?.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-900/50">
-                      {question.expectedResult.columns.map((col) => (
-                        <td key={col} className="p-2">
-                          {String(row[col])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           ) : sqlResult?.rows && sqlResult.rows.length > 0 ? (
-            <div>
-              <table className="w-full text-left text-xs font-mono border border-slate-800">
-                <thead className="bg-slate-900 text-emerald-300 text-[11px] uppercase">
-                  <tr>
-                    {sqlResult.columns?.map((col) => (
-                      <th key={col} className="p-2 border-b border-slate-800">
-                        {col}
-                      </th>
+            <table className="w-full text-left text-xs font-mono border border-slate-800">
+              <thead className="bg-slate-900 text-emerald-300 text-[11px] uppercase">
+                <tr>
+                  {sqlResult.columns?.map((col) => (
+                    <th key={col} className="p-2 border-b border-slate-800">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-900 text-slate-300">
+                {sqlResult.rows.map((row, i) => (
+                  <tr key={i} className="hover:bg-slate-900/50">
+                    {sqlResult.columns.map((col) => (
+                      <td key={col} className="p-2">
+                        {String(row[col])}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-900 text-slate-300">
-                  {sqlResult.rows.map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-900/50">
-                      {sqlResult.columns.map((col) => (
-                        <td key={col} className="p-2">
-                          {String(row[col])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <div className="text-slate-500 py-4 text-center">
-              Query has not been executed yet. Click &quot;Execute Query&quot; to test your SQL against test database.
+              Query has not been executed yet. Click &quot;Execute Query&quot; to test your SQL
+              against test database.
             </div>
           )}
         </div>

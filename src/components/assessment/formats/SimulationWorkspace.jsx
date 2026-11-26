@@ -10,15 +10,14 @@ import {
   ChevronUp,
   Cpu,
   Layers,
+  FileInput,
+  FileOutput,
 } from 'lucide-react'
 import MonacoCodeEditor from '../editor/MonacoCodeEditor'
 import SplitPane from '../../ui/SplitPane'
 
 /**
  * Story-Based Simulation Coding Workspace
- * Integrated Monaco Editor with language switching, starter template reset,
- * Docker sandbox code execution (<2s execution target), sample test case diffs,
- * and stdout/stderr inspector.
  */
 export const SimulationWorkspace = ({
   question,
@@ -28,10 +27,12 @@ export const SimulationWorkspace = ({
   onRunCode,
   assessmentId,
 }) => {
-  const currentLanguage = answer?.language || 'python'
-  const currentCode = answer?.code || question.starterCode?.[currentLanguage] || ''
-  const [activeTab, setActiveTab] = useState('problem') // 'problem' | 'customInput'
-  const [customInput, setCustomInput] = useState(answer?.customInput || '')
+  const availableLanguages = Object.keys(question.starterCode || { python: '' })
+  const currentLanguage = answer?.language || availableLanguages[0] || 'python'
+  const currentCode = answer?.code ?? (question.starterCode?.[currentLanguage] || '')
+  const customInput = answer?.customInput || ''
+
+  const [drawerTab, setDrawerTab] = useState('results') // 'results' | 'customInput'
   const [copiedInputIdx, setCopiedInputIdx] = useState(null)
   const [isConsoleOpen, setIsConsoleOpen] = useState(true)
 
@@ -49,26 +50,28 @@ export const SimulationWorkspace = ({
   }
 
   const handleCodeChange = (newCode) => {
-    onAnswerChange({
-      code: newCode,
-    })
+    onAnswerChange({ code: newCode })
   }
 
   const handleResetBoilerplate = () => {
     const defaultCode = question.starterCode?.[currentLanguage] || ''
-    onAnswerChange({
-      code: defaultCode,
-    })
+    onAnswerChange({ code: defaultCode })
   }
 
-  const handleRunCode = () => {
+  const handleCustomInputChange = (val) => {
+    onAnswerChange({ customInput: val })
+  }
+
+  const handleRunCode = (useCustom = false) => {
+    setIsConsoleOpen(true)
+    setDrawerTab('results')
     if (onRunCode) {
       onRunCode({
         assessmentId,
         questionId: question.id,
         code: currentCode,
         language: currentLanguage,
-        customInput: activeTab === 'customInput' ? customInput : '',
+        customInput: useCustom ? customInput : '',
       })
     }
   }
@@ -80,8 +83,7 @@ export const SimulationWorkspace = ({
   }
 
   const leftContent = (
-    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5">
-      {/* Header Tags */}
+    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5 exam-scroll">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 font-semibold rounded-lg text-xs">
@@ -105,27 +107,47 @@ export const SimulationWorkspace = ({
         </div>
       </div>
 
-      {/* Problem Title */}
       <h2 className="text-lg font-bold text-slate-900 leading-snug">{question.title}</h2>
 
-      {/* Story Section */}
       <div className="space-y-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Layers className="w-3.5 h-3.5 text-indigo-500" />
-          <span>Problem Description</span>
+          <span>Problem Scenario</span>
         </h3>
-        <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70">
+        <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70 select-text">
           {question.story}
         </div>
       </div>
 
-      {/* Constraints */}
+      {(question.inputFormat || question.outputFormat) && (
+        <div className="grid grid-cols-1 gap-3 text-xs">
+          {question.inputFormat && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <div className="font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
+                <FileInput className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Input Format</span>
+              </div>
+              <p className="text-slate-700 leading-relaxed select-text">{question.inputFormat}</p>
+            </div>
+          )}
+          {question.outputFormat && (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <div className="font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 text-[11px]">
+                <FileOutput className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Output Format</span>
+              </div>
+              <p className="text-slate-700 leading-relaxed select-text">{question.outputFormat}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {question.constraints && question.constraints.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Constraints & Sandbox Limits
+            Constraints &amp; Sandbox Limits
           </h3>
-          <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/80 font-mono">
+          <ul className="list-disc list-inside space-y-1 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/80 font-mono select-text">
             {question.constraints.map((c, i) => (
               <li key={i}>{c}</li>
             ))}
@@ -133,7 +155,6 @@ export const SimulationWorkspace = ({
         </div>
       )}
 
-      {/* Sample Test Cases */}
       {question.sampleCases && question.sampleCases.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -142,7 +163,7 @@ export const SimulationWorkspace = ({
           {question.sampleCases.map((tc, idx) => (
             <div
               key={idx}
-              className="bg-slate-900 text-slate-200 rounded-xl p-3.5 text-xs font-mono space-y-2 border border-slate-800"
+              className="bg-slate-900 text-slate-200 rounded-xl p-3.5 text-xs font-mono space-y-2 border border-slate-800 select-text"
             >
               <div className="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-1.5 text-[11px]">
                 <span>Sample Case #{idx + 1}</span>
@@ -189,21 +210,22 @@ export const SimulationWorkspace = ({
     </div>
   )
 
+  const passedTestsCount = testResults.filter((t) => t.status === 'PASSED').length
+
   const rightContent = (
     <div className="h-full flex flex-col p-3 sm:p-4 bg-slate-900 gap-3 overflow-hidden">
-      {/* Monaco Editor Container */}
-      <div className="flex-1 min-h-[320px] relative">
+      <div className="flex-1 min-h-[280px] relative">
         <MonacoCodeEditor
           language={currentLanguage}
           value={currentCode}
           onChange={handleCodeChange}
           onLanguageChange={handleLanguageChange}
           onResetBoilerplate={handleResetBoilerplate}
-          availableLanguages={['python', 'javascript', 'java', 'cpp']}
+          availableLanguages={availableLanguages}
           headerExtra={
             <button
               type="button"
-              onClick={handleRunCode}
+              onClick={() => handleRunCode(false)}
               disabled={isRunning}
               className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white rounded-md font-semibold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
             >
@@ -223,26 +245,48 @@ export const SimulationWorkspace = ({
         />
       </div>
 
-      {/* Execution Results Drawer (Docker Sandbox Feedback <2s) */}
+      {/* Execution Results Drawer */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col max-h-[250px]">
-        {/* Drawer Header */}
         <div className="bg-slate-900/90 px-3.5 py-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
           <div className="flex items-center space-x-2">
             <Terminal className="w-3.5 h-3.5 text-cyan-400" />
             <span className="font-semibold text-slate-200">Execution Output (Docker Sandbox)</span>
             {testResults.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
-                {testResults.filter((t) => t.status === 'PASSED').length}/{testResults.length} Tests Passed
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  passedTestsCount === testResults.length
+                    ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                    : 'bg-rose-950 text-rose-300 border-rose-800'
+                }`}
+              >
+                {passedTestsCount}/{testResults.length} Tests Passed
               </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
             <button
               type="button"
-              onClick={() => setActiveTab((t) => (t === 'problem' ? 'customInput' : 'problem'))}
+              onClick={() => {
+                setIsConsoleOpen(true)
+                setDrawerTab('results')
+              }}
               className={`px-2 py-0.5 rounded text-[11px] font-mono transition cursor-pointer ${
-                activeTab === 'customInput'
+                drawerTab === 'results'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Results
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsConsoleOpen(true)
+                setDrawerTab('customInput')
+              }}
+              className={`px-2 py-0.5 rounded text-[11px] font-mono transition cursor-pointer ${
+                drawerTab === 'customInput'
                   ? 'bg-indigo-600 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
@@ -255,30 +299,42 @@ export const SimulationWorkspace = ({
               className="p-1 text-slate-400 hover:text-white cursor-pointer"
               title={isConsoleOpen ? 'Collapse Console' : 'Expand Console'}
             >
-              {isConsoleOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+              {isConsoleOpen ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronUp className="w-3.5 h-3.5" />
+              )}
             </button>
           </div>
         </div>
 
-        {/* Drawer Body */}
         {isConsoleOpen && (
-          <div className="p-3 text-xs font-mono overflow-y-auto space-y-3 bg-slate-950/70">
-            {activeTab === 'customInput' ? (
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">
-                  Provide custom input for sandbox stdin:
-                </label>
+          <div className="p-3 text-xs font-mono overflow-y-auto space-y-3 bg-slate-950/70 exam-scroll select-text">
+            {drawerTab === 'customInput' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] text-slate-400">
+                    Provide custom input for sandbox stdin:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleRunCode(true)}
+                    disabled={isRunning || !customInput.trim()}
+                    className="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white font-sans font-semibold text-[11px] cursor-pointer"
+                  >
+                    Run with Custom Input
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  placeholder="e.g. 3 3&#10;1 2 2&#10;3 8 2&#10;5 3 5"
+                  onChange={(e) => handleCustomInputChange(e.target.value)}
+                  placeholder={'e.g. 3 3\n1 2 2\n3 8 2\n5 3 5'}
                   className="w-full bg-slate-900 text-emerald-300 p-2 rounded border border-slate-800 text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none"
                 />
               </div>
             ) : (
               <>
-                {/* Test case badges */}
                 {testResults.length > 0 && (
                   <div className="flex flex-wrap gap-2 pb-2 border-b border-slate-900">
                     {testResults.map((tc) => (
@@ -296,6 +352,11 @@ export const SimulationWorkspace = ({
                           <XCircle className="w-3 h-3 text-rose-400" />
                         )}
                         <span>{tc.title || `Test Case #${tc.caseIndex}`}</span>
+                        {tc.status !== 'PASSED' && tc.actualOutput && (
+                          <span className="text-[10px] text-rose-200">
+                            (got {tc.actualOutput}, expected {tc.expectedOutput})
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-400 font-sans">
                           ({tc.executionTimeMs}ms)
                         </span>
@@ -304,21 +365,25 @@ export const SimulationWorkspace = ({
                   </div>
                 )}
 
-                {/* Stdout / Stderr logs */}
+                {stderr && (
+                  <div className="text-rose-300 whitespace-pre-wrap leading-5 bg-rose-950/30 p-2.5 rounded border border-rose-900">
+                    {stderr}
+                  </div>
+                )}
+
                 {stdout ? (
                   <div className="text-emerald-400 whitespace-pre-wrap leading-5 bg-slate-900/60 p-2.5 rounded border border-slate-800">
                     {stdout}
                   </div>
-                ) : stderr ? (
-                  <div className="text-rose-400 whitespace-pre-wrap leading-5 bg-rose-950/30 p-2.5 rounded border border-rose-900">
-                    {stderr}
-                  </div>
-                ) : (
+                ) : !stderr ? (
                   <div className="text-slate-500 flex items-center gap-2 py-2">
                     <Cpu className="w-4 h-4 text-slate-600" />
-                    <span>Ready for compilation. Click &quot;Run Sample Tests&quot; to execute in isolated Docker sandbox.</span>
+                    <span>
+                      Ready for compilation. Click &quot;Run Sample Tests&quot; to execute in
+                      isolated Docker sandbox.
+                    </span>
                   </div>
-                )}
+                ) : null}
               </>
             )}
           </div>

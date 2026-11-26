@@ -6,6 +6,8 @@ import {
   toggleMarkForReview,
   clearAnswer,
   tickTimer,
+  setRemainingSecondsDev,
+  saveDraftToStorage,
 } from './examSlice'
 import {
   loadAssessment,
@@ -36,15 +38,33 @@ export const useActiveExam = () => {
       : null
 
   const currentExecution =
-    currentQuestion && exam.execution
-      ? exam.execution[currentQuestion.id]
-      : null
+    currentQuestion && exam.execution ? exam.execution[currentQuestion.id] : null
+
+  // Persist active draft progress across accidental page reloads
+  useEffect(() => {
+    const assessmentId = exam.activeAssessment?.id
+    if (!assessmentId || exam.submission.isSubmitted) return
+
+    saveDraftToStorage(assessmentId, {
+      answers: exam.answers,
+      questionStatus: exam.questionStatus,
+      currentQuestionIndex: exam.currentQuestionIndex,
+      serverDeadline: exam.timer.serverDeadline,
+    })
+  }, [
+    exam.activeAssessment?.id,
+    exam.answers,
+    exam.questionStatus,
+    exam.currentQuestionIndex,
+    exam.timer.serverDeadline,
+    exam.submission.isSubmitted,
+  ])
 
   const goToQuestion = useCallback(
     (index) => {
       dispatch(selectQuestionIndex(index))
     },
-    [dispatch]
+    [dispatch],
   )
 
   const nextQuestion = useCallback(() => {
@@ -63,41 +83,40 @@ export const useActiveExam = () => {
     (questionId, answerData) => {
       dispatch(saveAnswer({ questionId, answerData }))
     },
-    [dispatch]
+    [dispatch],
   )
 
   const markForReview = useCallback(
     (questionId) => {
       dispatch(toggleMarkForReview(questionId))
     },
-    [dispatch]
+    [dispatch],
   )
 
   const resetCurrentAnswer = useCallback(
     (questionId) => {
       dispatch(clearAnswer(questionId))
     },
-    [dispatch]
+    [dispatch],
   )
 
-  const runCode = useCallback(
-    (params) => dispatch(executeCode(params)),
-    [dispatch]
-  )
+  const runCode = useCallback((params) => dispatch(executeCode(params)), [dispatch])
 
-  const runSql = useCallback(
-    (params) => dispatch(executeSql(params)),
-    [dispatch]
-  )
+  const runSql = useCallback((params) => dispatch(executeSql(params)), [dispatch])
 
   const submitExam = useCallback(
-    (assessmentId) => dispatch(finalizeSubmission(assessmentId)),
-    [dispatch]
+    (assessmentId, options) => dispatch(finalizeSubmission(assessmentId, options)),
+    [dispatch],
   )
 
   const startExam = useCallback(
-    (assessmentId) => dispatch(loadAssessment(assessmentId)),
-    [dispatch]
+    (assessmentId, options) => dispatch(loadAssessment(assessmentId, options)),
+    [dispatch],
+  )
+
+  const simulateExpiryDev = useCallback(
+    (seconds = 5) => dispatch(setRemainingSecondsDev(seconds)),
+    [dispatch],
   )
 
   return {
@@ -116,6 +135,7 @@ export const useActiveExam = () => {
     runSql,
     submitExam,
     startExam,
+    simulateExpiryDev,
   }
 }
 
@@ -126,7 +146,6 @@ export const useExamTimer = (assessmentId) => {
   const dispatch = useDispatch()
   const timer = useSelector((state) => state.exam.timer)
 
-  // Periodic 1-second countdown tick
   useEffect(() => {
     if (!timer.serverDeadline || timer.isTimeUp) return
 
@@ -137,19 +156,20 @@ export const useExamTimer = (assessmentId) => {
     return () => clearInterval(interval)
   }, [dispatch, timer.serverDeadline, timer.isTimeUp])
 
-  // Periodic Authoritative Server Sync Heartbeat (every 45s or visibility regain)
+  const syncNow = useCallback(() => {
+    if (assessmentId && !timer.isTimeUp) {
+      dispatch(syncExamTimer(assessmentId))
+    }
+  }, [dispatch, assessmentId, timer.isTimeUp])
+
   useEffect(() => {
     if (!assessmentId || timer.isTimeUp) return
 
-    const syncPing = () => {
-      dispatch(syncExamTimer(assessmentId))
-    }
-
-    const syncInterval = setInterval(syncPing, 45000)
+    const syncInterval = setInterval(syncNow, 45000)
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        syncPing()
+        syncNow()
       }
     }
 
@@ -159,13 +179,13 @@ export const useExamTimer = (assessmentId) => {
       clearInterval(syncInterval)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [dispatch, assessmentId, timer.isTimeUp])
+  }, [syncNow, assessmentId, timer.isTimeUp])
 
-  // Format remaining seconds into HH:MM:SS
   const formatTime = (seconds) => {
-    const hrs = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
+    const safeSecs = Math.max(0, seconds || 0)
+    const hrs = Math.floor(safeSecs / 3600)
+    const mins = Math.floor((safeSecs % 3600) / 60)
+    const secs = safeSecs % 60
 
     const paddedMins = String(mins).padStart(2, '0')
     const paddedSecs = String(secs).padStart(2, '0')
@@ -176,13 +196,14 @@ export const useExamTimer = (assessmentId) => {
     return `${paddedMins}:${paddedSecs}`
   }
 
-  const isWarning = timer.remainingSeconds > 0 && timer.remainingSeconds <= 600 // <= 10 mins
-  const isCritical = timer.remainingSeconds > 0 && timer.remainingSeconds <= 120 // <= 2 mins
+  const isWarning = timer.remainingSeconds > 0 && timer.remainingSeconds <= 600
+  const isCritical = timer.remainingSeconds > 0 && timer.remainingSeconds <= 120
 
   return {
     ...timer,
     formattedTime: formatTime(timer.remainingSeconds),
     isWarning,
     isCritical,
+    syncNow,
   }
 }

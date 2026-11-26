@@ -4,6 +4,7 @@
 export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
+  REGISTER: '/register',
   UNAUTHORIZED: '/unauthorized',
 
   // Student Routes
@@ -13,6 +14,7 @@ export const ROUTES = {
     ASSESSMENTS: '/student/assessments',
     ASSESSMENT_PLAYER: '/student/assessment/:assessmentId',
     GAMES: '/student/cognitive-games',
+    GAMES_COMPANY: '/student/cognitive-games/:companyId',
     STUDY_PLAN: '/student/study-plan',
     LEADERBOARD: '/student/leaderboard',
   },
@@ -44,4 +46,4 @@ export const ROUTES = {
     TENANTS: '/super-admin/tenants',
     GLOBAL_CONFIG: '/super-admin/system-config',
   },
-};
+}

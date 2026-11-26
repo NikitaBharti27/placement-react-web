@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { MsalProvider } from '@azure/msal-react'
 import { store } from './store'
 import { msalInstance, initializeMsal } from './features/auth/msalInstance'
+import { logout } from './features/auth/authSlice'
 import AppRoutes from './routes/AppRoutes'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
@@ -28,6 +29,15 @@ export function App() {
     return () => {
       isMounted = false
     }
+  }, [])
+
+  // Keep Redux state synchronized when apiClient receives a 401 Unauthorized response
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      store.dispatch(logout())
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
   if (!msalReady) {

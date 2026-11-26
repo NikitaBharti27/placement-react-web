@@ -10,13 +10,13 @@ import {
   Lock,
   ArrowRight,
   Terminal,
+  UserPlus,
 } from 'lucide-react'
 import RoleSwitcherDev from '../components/common/RoleSwitcherDev'
 
 export const HomePage = () => {
   const { isAuthenticated, role } = useAuth()
 
-  // If already logged in, automatically dispatch to assigned role dashboard
   if (isAuthenticated && role) {
     return <Navigate to={getDefaultRouteForRole(role)} replace />
   }
@@ -24,7 +24,7 @@ export const HomePage = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
       {/* Top Header */}
-      <header className="border-b border-slate-800 backdrop-blur-md sticky top-0 z-40 bg-slate-900/80">
+      <header className="border-b border-slate-800 backdrop-blur-md sticky top-0 z-40 bg-slate-900/85">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
@@ -40,12 +40,20 @@ export const HomePage = () => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5">
+            <Link
+              to={ROUTES.REGISTER}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Activate Account</span>
+              <span className="sm:hidden">Register</span>
+            </Link>
             <Link
               to={ROUTES.LOGIN}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition"
             >
-              <span>Candidate & Faculty Sign In</span>
+              <span>Sign In</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -53,14 +61,17 @@ export const HomePage = () => {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center text-center justify-center">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 flex flex-col items-center text-center justify-center">
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-700/60 text-indigo-300 text-xs font-medium mb-6">
           <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Phase 2 Live: Core Assessment Engine with Monaco Editor & Draggable SplitPane</span>
+          <span>Phase 1 &amp; 2 Production Workspace • OAuth2 PKCE + Multi-Format Evaluation</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-4xl leading-tight">
-          Bridge the Gap to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-300">Modern MNC Corporate Tests</span>
+          Bridge the Gap to{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-300">
+            Modern MNC Corporate Tests
+          </span>
         </h1>
 
         <p className="mt-6 text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
@@ -70,7 +81,7 @@ export const HomePage = () => {
         </p>
 
         {/* CTA Buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 w-full max-w-lg justify-center">
+        <div className="mt-10 flex flex-col sm:flex-row gap-3.5 w-full max-w-xl justify-center">
           <Link
             to="/student/assessment/tcs-nqt-tech-01"
             className="flex-1 py-3 px-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-sm rounded-xl shadow-xl shadow-indigo-600/30 flex items-center justify-center space-x-2 transition active:scale-95 border border-indigo-400/30"
@@ -80,10 +91,17 @@ export const HomePage = () => {
           </Link>
           <Link
             to={ROUTES.LOGIN}
-            className="py-3 px-6 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm rounded-xl flex items-center justify-center space-x-2 transition"
+            className="py-3 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-sm rounded-xl flex items-center justify-center space-x-2 transition"
           >
             <GraduationCap className="w-5 h-5" />
-            <span>Student Login (OTP)</span>
+            <span>Student / Faculty Sign In</span>
+          </Link>
+          <Link
+            to={ROUTES.REGISTER}
+            className="py-3 px-5 bg-slate-800/60 hover:bg-slate-800 text-cyan-300 border border-slate-700 font-semibold text-sm rounded-xl flex items-center justify-center space-x-2 transition"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Register</span>
           </Link>
         </div>
 
@@ -129,10 +147,9 @@ export const HomePage = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        PlacePrep Secure • Senior Frontend Architecture by Nikita Bharti • Multi-Tenant SaaS
+        PlacePrep Secure • Enterprise Multi-Tenant SaaS Assessment Architecture
       </footer>
 
-      {/* Dev Role Switcher */}
       <RoleSwitcherDev />
     </div>
   )

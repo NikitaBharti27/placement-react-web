@@ -11,6 +11,125 @@ export const QUESTION_STATUS = {
   ANSWERED_AND_MARKED: 'ANSWERED_AND_MARKED',
 }
 
+const DRAFT_KEY_PREFIX = 'placeprep_exam_draft_'
+const SUBMITTED_KEY = 'placeprep_submitted_assessments'
+
+const loadDraftFromStorage = (assessmentId) => {
+  try {
+    const raw = sessionStorage.getItem(`${DRAFT_KEY_PREFIX}${assessmentId}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export const saveDraftToStorage = (assessmentId, payload) => {
+  try {
+    sessionStorage.setItem(`${DRAFT_KEY_PREFIX}${assessmentId}`, JSON.stringify(payload))
+  } catch {
+    // Ignore storage quota issues cleanly
+  }
+}
+
+export const clearDraftFromStorage = (assessmentId) => {
+  try {
+    sessionStorage.removeItem(`${DRAFT_KEY_PREFIX}${assessmentId}`)
+  } catch {
+    // Ignore cleanly
+  }
+}
+
+export const getSubmittedReceipts = () => {
+  try {
+    const raw = sessionStorage.getItem(SUBMITTED_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export const saveSubmittedReceipt = (assessmentId, receipt) => {
+  try {
+    const existing = getSubmittedReceipts()
+    existing[assessmentId] = receipt
+    sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify(existing))
+  } catch {
+    // Ignore cleanly
+  }
+}
+
+const buildDefaultAnswer = (q) => {
+  if (q.type === 'MCQ') {
+    return { selectedOptionId: null }
+  }
+  if (q.type === 'SIMULATION') {
+    const defaultLang = 'python'
+    return {
+      language: defaultLang,
+      code: q.starterCode?.[defaultLang] || '',
+      customInput: '',
+    }
+  }
+  if (q.type === 'SQL_TASK') {
+    return {
+      query: q.starterQuery || '',
+    }
+  }
+  if (q.type === 'UI_TASK') {
+    return {
+      html: q.starterHtml || '',
+      css: q.starterCss || '',
+      js: q.starterJs || '',
+    }
+  }
+  if (q.type === 'GAMIFIED') {
+    return {
+      gameType: q.gameType,
+      rawEvents: [],
+      outcome: null,
+      completed: false,
+    }
+  }
+  return {}
+}
+
+/**
+ * Single source of truth for evaluating whether a question answer contains substantive work.
+ */
+const hasSubstantiveAnswer = (answer = {}, question = null) => {
+  if (!answer) return false
+  if (answer.selectedOptionId) return true
+  if (typeof answer.code === 'string' && answer.code.trim().length > 0) {
+    if (question?.starterCode?.[answer.language || 'python'] === answer.code) {
+      return Boolean(answer.hasExecuted)
+    }
+    return true
+  }
+  if (typeof answer.query === 'string' && answer.query.trim().length > 0) {
+    if (question?.starterQuery === answer.query) {
+      return Boolean(answer.hasExecuted)
+    }
+    return true
+  }
+  if (
+    typeof answer.html === 'string' ||
+    typeof answer.css === 'string' ||
+    typeof answer.js === 'string'
+  ) {
+    const modifiedStarter =
+      question &&
+      (answer.html !== (question.starterHtml || '') ||
+        answer.css !== (question.starterCss || '') ||
+        answer.js !== (question.starterJs || ''))
+    return Boolean(modifiedStarter || answer.hasVerified)
+  }
+  if (answer.completed || (Array.isArray(answer.rawEvents) && answer.rawEvents.length > 0)) {
+    return true
+  }
+  return false
+}
+
 const initialState = {
   activeAssessment: null,
   questions: [],
@@ -29,8 +148,10 @@ const initialState = {
   submission: {
     isSubmitting: false,
     isSubmitted: false,
+    isAutoExpired: false,
     jobId: null,
     submittedAt: null,
+    message: null,
     error: null,
   },
   isLoading: false,
@@ -50,64 +171,67 @@ export const examSlice = createSlice({
       state.error = action.payload || 'Failed to load assessment'
     },
     setAssessment: (state, action) => {
-      const assessment = action.payload
+      const { assessment, forceReset = false } = action.payload?.assessment
+        ? action.payload
+        : { assessment: action.payload, forceReset: false }
+
       state.isLoading = false
       state.error = null
       state.activeAssessment = assessment
       state.questions = assessment.questions || []
-      state.currentQuestionIndex = 0
+      state.execution = {}
 
-      // Calculate server time offset
+      if (forceReset) {
+        clearDraftFromStorage(assessment.id)
+      }
+
+      const savedDraft = forceReset ? null : loadDraftFromStorage(assessment.id)
       const clientNow = Date.now()
       const serverNow = assessment.serverCurrentTime || clientNow
       const offset = serverNow - clientNow
-      const deadline = assessment.serverDeadline || clientNow + (assessment.durationMinutes || 60) * 60 * 1000
+      const deadline =
+        savedDraft?.serverDeadline ||
+        assessment.serverDeadline ||
+        clientNow + (assessment.durationMinutes || 60) * 60 * 1000
+
+      const remaining = Math.max(0, Math.floor((deadline - (clientNow + offset)) / 1000))
 
       state.timer = {
         serverDeadline: deadline,
         serverTimeOffset: offset,
-        remainingSeconds: Math.max(0, Math.floor((deadline - (clientNow + offset)) / 1000)),
-        isTimeUp: false,
+        remainingSeconds: remaining,
+        isTimeUp: remaining <= 0,
         isSynced: true,
         lastSyncTime: clientNow,
       }
 
-      // Initialize answers and statuses for all questions
       const initialAnswers = {}
       const initialStatus = {}
 
       state.questions.forEach((q, idx) => {
-        initialStatus[q.id] = idx === 0 ? QUESTION_STATUS.VISITED : QUESTION_STATUS.NOT_VISITED
+        initialAnswers[q.id] = savedDraft?.answers?.[q.id]
+          ? { ...buildDefaultAnswer(q), ...savedDraft.answers[q.id] }
+          : buildDefaultAnswer(q)
 
-        if (q.type === 'MCQ') {
-          initialAnswers[q.id] = { selectedOptionId: null }
-        } else if (q.type === 'SIMULATION') {
-          const defaultLang = 'python'
-          initialAnswers[q.id] = {
-            language: defaultLang,
-            code: q.starterCode?.[defaultLang] || '',
-            customInput: '',
-          }
-        } else if (q.type === 'SQL_TASK') {
-          initialAnswers[q.id] = {
-            query: q.starterQuery || '',
-          }
-        } else if (q.type === 'UI_TASK') {
-          initialAnswers[q.id] = {
-            html: q.starterHtml || '',
-            css: q.starterCss || '',
-            js: q.starterJs || '',
-          }
-        }
+        initialStatus[q.id] =
+          savedDraft?.questionStatus?.[q.id] ||
+          (idx === 0 ? QUESTION_STATUS.VISITED : QUESTION_STATUS.NOT_VISITED)
       })
 
+      state.currentQuestionIndex =
+        typeof savedDraft?.currentQuestionIndex === 'number' &&
+        savedDraft.currentQuestionIndex < state.questions.length
+          ? savedDraft.currentQuestionIndex
+          : 0
       state.answers = initialAnswers
       state.questionStatus = initialStatus
       state.submission = {
         isSubmitting: false,
         isSubmitted: false,
+        isAutoExpired: false,
         jobId: null,
         submittedAt: null,
+        message: null,
         error: null,
       }
     },
@@ -117,31 +241,29 @@ export const examSlice = createSlice({
       if (newIndex >= 0 && newIndex < state.questions.length) {
         state.currentQuestionIndex = newIndex
         const qId = state.questions[newIndex].id
-        const currentStatus = state.questionStatus[qId]
-        if (currentStatus === QUESTION_STATUS.NOT_VISITED) {
+        if (state.questionStatus[qId] === QUESTION_STATUS.NOT_VISITED) {
           state.questionStatus[qId] = QUESTION_STATUS.VISITED
         }
       }
     },
 
     saveAnswer: (state, action) => {
+      if (state.timer.isTimeUp || state.submission.isSubmitted) return
       const { questionId, answerData } = action.payload
-      state.answers[questionId] = {
+      const merged = {
         ...state.answers[questionId],
         ...answerData,
       }
+      state.answers[questionId] = merged
 
-      // Update question status intelligently
+      const question = state.questions.find((item) => item.id === questionId) || null
       const currentStatus = state.questionStatus[questionId]
-      const hasContent = Boolean(
-        answerData.selectedOptionId ||
-          answerData.code ||
-          answerData.query ||
-          answerData.html ||
-          answerData.css
-      )
+      const hasContent = hasSubstantiveAnswer(merged, question)
 
-      if (currentStatus === QUESTION_STATUS.MARKED_FOR_REVIEW) {
+      if (
+        currentStatus === QUESTION_STATUS.MARKED_FOR_REVIEW ||
+        currentStatus === QUESTION_STATUS.ANSWERED_AND_MARKED
+      ) {
         state.questionStatus[questionId] = hasContent
           ? QUESTION_STATUS.ANSWERED_AND_MARKED
           : QUESTION_STATUS.MARKED_FOR_REVIEW
@@ -153,26 +275,21 @@ export const examSlice = createSlice({
     },
 
     toggleMarkForReview: (state, action) => {
+      if (state.timer.isTimeUp || state.submission.isSubmitted) return
       const questionId = action.payload
       const currentStatus = state.questionStatus[questionId]
       const currentAnswer = state.answers[questionId]
-
-      const isAnswered =
-        currentAnswer?.selectedOptionId ||
-        (currentAnswer?.code && currentAnswer.code.trim().length > 0) ||
-        (currentAnswer?.query && currentAnswer.query.trim().length > 0) ||
-        (currentAnswer?.html && currentAnswer.html.trim().length > 0)
+      const question = state.questions.find((item) => item.id === questionId) || null
+      const isAnswered = hasSubstantiveAnswer(currentAnswer, question)
 
       if (
         currentStatus === QUESTION_STATUS.MARKED_FOR_REVIEW ||
         currentStatus === QUESTION_STATUS.ANSWERED_AND_MARKED
       ) {
-        // Unmark
         state.questionStatus[questionId] = isAnswered
           ? QUESTION_STATUS.ANSWERED
           : QUESTION_STATUS.VISITED
       } else {
-        // Mark
         state.questionStatus[questionId] = isAnswered
           ? QUESTION_STATUS.ANSWERED_AND_MARKED
           : QUESTION_STATUS.MARKED_FOR_REVIEW
@@ -180,41 +297,23 @@ export const examSlice = createSlice({
     },
 
     clearAnswer: (state, action) => {
+      if (state.timer.isTimeUp || state.submission.isSubmitted) return
       const questionId = action.payload
       const q = state.questions.find((item) => item.id === questionId)
       if (!q) return
 
-      if (q.type === 'MCQ') {
-        state.answers[questionId] = { selectedOptionId: null }
-      } else if (q.type === 'SIMULATION') {
-        const lang = state.answers[questionId]?.language || 'python'
-        state.answers[questionId] = {
-          language: lang,
-          code: q.starterCode?.[lang] || '',
-          customInput: '',
-        }
-      } else if (q.type === 'SQL_TASK') {
-        state.answers[questionId] = { query: q.starterQuery || '' }
-      } else if (q.type === 'UI_TASK') {
-        state.answers[questionId] = {
-          html: q.starterHtml || '',
-          css: q.starterCss || '',
-          js: q.starterJs || '',
-        }
-      }
-
+      state.answers[questionId] = buildDefaultAnswer(q)
       state.questionStatus[questionId] = QUESTION_STATUS.VISITED
     },
 
-    // Timer sync reducers
     tickTimer: (state) => {
-      if (state.timer.isTimeUp) return
+      if (state.timer.isTimeUp || !state.timer.serverDeadline) return
 
       const clientNow = Date.now()
       const serverEstimatedNow = clientNow + state.timer.serverTimeOffset
       const remaining = Math.max(
         0,
-        Math.floor((state.timer.serverDeadline - serverEstimatedNow) / 1000)
+        Math.floor((state.timer.serverDeadline - serverEstimatedNow) / 1000),
       )
 
       state.timer.remainingSeconds = remaining
@@ -231,10 +330,11 @@ export const examSlice = createSlice({
       state.timer.lastSyncTime = clientNow
       state.timer.isSynced = true
 
+      if (!state.timer.serverDeadline) return
       const serverEstimatedNow = clientNow + offset
       const remaining = Math.max(
         0,
-        Math.floor((state.timer.serverDeadline - serverEstimatedNow) / 1000)
+        Math.floor((state.timer.serverDeadline - serverEstimatedNow) / 1000),
       )
       state.timer.remainingSeconds = remaining
       if (remaining <= 0) {
@@ -242,7 +342,15 @@ export const examSlice = createSlice({
       }
     },
 
-    // Code & SQL Execution Reducers
+    // Dev helper: shorten deadline to N seconds to verify authoritative auto-submit
+    setRemainingSecondsDev: (state, action) => {
+      const seconds = Math.max(1, Number(action.payload) || 5)
+      const clientNow = Date.now()
+      state.timer.serverDeadline = clientNow + state.timer.serverTimeOffset + seconds * 1000
+      state.timer.remainingSeconds = seconds
+      state.timer.isTimeUp = false
+    },
+
     executionStart: (state, action) => {
       const { questionId } = action.payload
       state.execution[questionId] = {
@@ -274,18 +382,29 @@ export const examSlice = createSlice({
       }
     },
 
-    // Submission Reducers
-    submissionStart: (state) => {
+    submissionStart: (state, action) => {
       state.submission.isSubmitting = true
+      state.submission.isAutoExpired = Boolean(action.payload?.isAutoSubmit)
       state.submission.error = null
     },
 
     submissionSuccess: (state, action) => {
+      const { jobId, submittedAt, message, assessmentId } = action.payload
       state.submission.isSubmitting = false
       state.submission.isSubmitted = true
-      state.submission.jobId = action.payload.jobId
-      state.submission.submittedAt = action.payload.submittedAt
-      state.submission.message = action.payload.message
+      state.submission.jobId = jobId
+      state.submission.submittedAt = submittedAt
+      state.submission.message = message
+      state.submission.error = null
+
+      if (assessmentId) {
+        clearDraftFromStorage(assessmentId)
+        saveSubmittedReceipt(assessmentId, {
+          jobId,
+          submittedAt,
+          message,
+        })
+      }
     },
 
     submissionFailed: (state, action) => {
@@ -307,6 +426,7 @@ export const {
   clearAnswer,
   tickTimer,
   updateAuthoritativeServerTime,
+  setRemainingSecondsDev,
   executionStart,
   executionSuccess,
   executionFailed,

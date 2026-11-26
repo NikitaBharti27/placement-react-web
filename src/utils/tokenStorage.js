@@ -1,6 +1,10 @@
 const TOKEN_KEY = 'placeprep_auth_token'
 const USER_KEY = 'placeprep_auth_user'
 const TENANT_KEY = 'placeprep_tenant_id'
+const DEV_REGISTRY_KEY = 'placeprep_dev_registered_users'
+
+const getTargetStorage = (remember = true) => (remember ? localStorage : sessionStorage)
+const getOtherStorage = (remember = true) => (remember ? sessionStorage : localStorage)
 
 export const tokenStorage = {
   getToken: () => {
@@ -13,11 +17,8 @@ export const tokenStorage = {
 
   setToken: (token, remember = true) => {
     try {
-      if (remember) {
-        localStorage.setItem(TOKEN_KEY, token)
-      } else {
-        sessionStorage.setItem(TOKEN_KEY, token)
-      }
+      getTargetStorage(remember).setItem(TOKEN_KEY, token)
+      getOtherStorage(remember).removeItem(TOKEN_KEY)
     } catch (e) {
       console.warn('Unable to persist token:', e)
     }
@@ -35,11 +36,8 @@ export const tokenStorage = {
   setUser: (user, remember = true) => {
     try {
       const serialized = JSON.stringify(user)
-      if (remember) {
-        localStorage.setItem(USER_KEY, serialized)
-      } else {
-        sessionStorage.setItem(USER_KEY, serialized)
-      }
+      getTargetStorage(remember).setItem(USER_KEY, serialized)
+      getOtherStorage(remember).removeItem(USER_KEY)
     } catch (e) {
       console.warn('Unable to persist user:', e)
     }
@@ -53,9 +51,10 @@ export const tokenStorage = {
     }
   },
 
-  setTenantId: (tenantId) => {
+  setTenantId: (tenantId, remember = true) => {
     try {
-      localStorage.setItem(TENANT_KEY, tenantId)
+      getTargetStorage(remember).setItem(TENANT_KEY, tenantId)
+      getOtherStorage(remember).removeItem(TENANT_KEY)
     } catch (e) {
       console.warn('Unable to persist tenantId:', e)
     }
@@ -63,14 +62,36 @@ export const tokenStorage = {
 
   clear: () => {
     try {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(USER_KEY)
-      localStorage.removeItem(TENANT_KEY)
-      sessionStorage.removeItem(TOKEN_KEY)
-      sessionStorage.removeItem(USER_KEY)
-      sessionStorage.removeItem(TENANT_KEY)
+      ;[TOKEN_KEY, USER_KEY, TENANT_KEY].forEach((key) => {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      })
     } catch (e) {
       console.warn('Unable to clear token storage:', e)
+    }
+  },
+
+  getDevRegisteredUsers: () => {
+    try {
+      const raw = localStorage.getItem(DEV_REGISTRY_KEY)
+      const parsed = raw ? JSON.parse(raw) : []
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  },
+
+  saveDevRegisteredUser: (user) => {
+    try {
+      const existing = tokenStorage.getDevRegisteredUsers()
+      const filtered = existing.filter(
+        (u) =>
+          (user.studentId && u.studentId?.toUpperCase() !== user.studentId.toUpperCase()) ||
+          (!user.studentId && u.email?.toLowerCase() !== user.email?.toLowerCase()),
+      )
+      localStorage.setItem(DEV_REGISTRY_KEY, JSON.stringify([...filtered, user]))
+    } catch (e) {
+      console.warn('Unable to save dev registered user:', e)
     }
   },
 }

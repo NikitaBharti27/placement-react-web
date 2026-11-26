@@ -104,10 +104,10 @@ export function SplitPane({
         {/* Left Pane */}
         <section
           aria-label={leftLabel}
-          style={!isLeftCollapsed ? { width: `${leftPercent}%` } : undefined}
+          style={!isLeftCollapsed ? { '--split-left-width': `${leftPercent}%` } : undefined}
           className={cn(
             'min-h-0 overflow-y-auto bg-white',
-            'lg:shrink-0',
+            'w-full lg:w-[var(--split-left-width)] lg:shrink-0',
             isLeftCollapsed
               ? 'hidden'
               : mobileActivePane === 'left'

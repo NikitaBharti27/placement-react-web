@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Layout,
   Play,
@@ -7,24 +7,22 @@ import {
   Eye,
   Code,
   Sparkles,
+  Monitor,
+  Smartphone,
 } from 'lucide-react'
 import MonacoCodeEditor from '../editor/MonacoCodeEditor'
 import SplitPane from '../../ui/SplitPane'
 
 /**
  * UI Engineering Task Workspace
- * Features:
- * - Real-time embedded live sandbox iframe preview
- * - Monaco Editor with HTML, CSS, and JS tabs
- * - Automated DOM acceptance criteria validator
+ * Live sandboxed iframe preview + real postMessage DOM & computed-style assertions.
  */
-export const UiTaskWorkspace = ({
-  question,
-  answer,
-  onAnswerChange,
-}) => {
-  const [activeCodeTab, setActiveCodeTab] = useState('html') // 'html' | 'css' | 'js'
+export const UiTaskWorkspace = ({ question, answer, onAnswerChange }) => {
+  const [activeCodeTab, setActiveCodeTab] = useState('html')
+  const [previewMode, setPreviewMode] = useState('desktop') // 'desktop' | 'mobile'
   const [verificationResults, setVerificationResults] = useState(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const iframeRef = useRef(null)
 
   const htmlCode = answer?.html ?? (question.starterHtml || '')
   const cssCode = answer?.css ?? (question.starterCss || '')
@@ -35,16 +33,17 @@ export const UiTaskWorkspace = ({
   const handleJsChange = (val) => onAnswerChange({ js: val })
 
   const handleReset = () => {
+    setVerificationResults(null)
     onAnswerChange({
       html: question.starterHtml || '',
       css: question.starterCss || '',
       js: question.starterJs || '',
+      hasVerified: false,
     })
   }
 
-  // Construct iframe srcDoc safely
-  const previewDocument = useMemo(() => {
-    return `
+  const previewDocument = useMemo(
+    () => `
       <!DOCTYPE html>
       <html>
         <head>
@@ -62,33 +61,102 @@ export const UiTaskWorkspace = ({
             } catch (err) {
               console.error('User JS Error:', err);
             }
+
+            window.addEventListener('message', function(event) {
+              if (!event.data || event.data.type !== 'RUN_UI_ASSERTIONS') return;
+              const results = [];
+              try {
+                const card = document.querySelector('#candidate-card, .card');
+                const cardStyle = card ? getComputedStyle(card) : null;
+                const req1 = Boolean(
+                  card &&
+                  cardStyle &&
+                  (cardStyle.display.includes('flex') || cardStyle.display.includes('grid')) &&
+                  parseFloat(cardStyle.paddingTop) >= 16 &&
+                  parseFloat(cardStyle.borderTopLeftRadius) > 0
+                );
+                results.push({ id: 'req-1', passed: req1 });
+
+                const badge = document.querySelector('#badge, .badge');
+                const badgeStyle = badge ? getComputedStyle(badge) : null;
+                const req2 = Boolean(
+                  badgeStyle &&
+                  badgeStyle.backgroundColor === 'rgb(209, 250, 229)' &&
+                  badgeStyle.color === 'rgb(6, 95, 70)'
+                );
+                results.push({ id: 'req-2', passed: req2 });
+
+                const btn = document.querySelector('#verify-btn, .btn, button');
+                const btnStyle = btn ? getComputedStyle(btn) : null;
+                const styleText = Array.from(document.querySelectorAll('style'))
+                  .map((s) => s.textContent || '')
+                  .join(' ');
+                const req3 = Boolean(
+                  btn &&
+                  btnStyle &&
+                  parseFloat(btnStyle.transitionDuration) > 0 &&
+                  styleText.includes('focus-visible')
+                );
+                results.push({ id: 'req-3', passed: req3 });
+
+                let req4 = false;
+                if (btn) {
+                  const beforeText = btn.textContent || '';
+                  btn.click();
+                  const afterText = btn.textContent || '';
+                  req4 = afterText !== beforeText && /verified/i.test(afterText);
+                  btn.click(); // Restore prior state cleanly
+                }
+                results.push({ id: 'req-4', passed: req4 });
+              } catch (err) {
+                console.error('Assertion error:', err);
+              }
+
+              window.parent.postMessage({
+                type: 'UI_ASSERTIONS_RESULT',
+                requestId: event.data.requestId,
+                results: results,
+              }, '*');
+            });
           </script>
         </body>
       </html>
-    `
-  }, [htmlCode, cssCode, jsCode])
+    `,
+    [htmlCode, cssCode, jsCode],
+  )
 
-  // Run DOM validation test checks against the acceptance criteria
-  const handleVerifyUi = () => {
-    const results = question.requirements.map((req, idx) => {
-      let passed = true
-      if (idx === 0) {
-        passed = htmlCode.includes('card') && cssCode.includes('padding')
-      } else if (idx === 1) {
-        passed = cssCode.includes('d1fae5') || cssCode.includes('emerald') || cssCode.includes('badge')
-      } else if (idx === 2) {
-        passed = cssCode.includes('transition') || cssCode.includes('focus')
-      } else if (idx === 3) {
-        passed = jsCode.includes('addEventListener') && jsCode.includes('Verified')
-      }
-      return {
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type !== 'UI_ASSERTIONS_RESULT') return
+      const assertionMap = new Map((event.data.results || []).map((r) => [r.id, r.passed]))
+      const mapped = (question.requirements || []).map((req) => ({
         id: req.id,
         text: req.text,
-        passed,
-      }
-    })
+        passed: Boolean(assertionMap.get(req.id)),
+      }))
+      setVerificationResults(mapped)
+      setIsVerifying(false)
+      onAnswerChange({ hasVerified: true })
+    }
 
-    setVerificationResults(results)
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [question.requirements, onAnswerChange])
+
+  const handleVerifyUi = () => {
+    const win = iframeRef.current?.contentWindow
+    if (win) {
+      setIsVerifying(true)
+      win.postMessage({ type: 'RUN_UI_ASSERTIONS', requestId: Date.now() }, '*')
+      return
+    }
+
+    const fallbackResults = (question.requirements || []).map((req) => ({
+      id: req.id,
+      text: req.text,
+      passed: false,
+    }))
+    setVerificationResults(fallbackResults)
   }
 
   const passedCount = verificationResults
@@ -96,8 +164,7 @@ export const UiTaskWorkspace = ({
     : 0
 
   const leftContent = (
-    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5">
-      {/* Header Tags */}
+    <div className="h-full overflow-y-auto p-4 sm:p-5 border-r border-slate-200 bg-white space-y-5 exam-scroll">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center space-x-2">
           <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-semibold rounded-lg text-xs">
@@ -115,15 +182,13 @@ export const UiTaskWorkspace = ({
         </div>
       </div>
 
-      {/* Task Title & Brief */}
       <div className="space-y-2">
         <h2 className="text-lg font-bold text-slate-900">{question.title}</h2>
-        <div className="text-sm text-slate-700 leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70">
+        <div className="text-sm text-slate-700 leading-relaxed font-sans bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/70 select-text">
           {question.taskBrief}
         </div>
       </div>
 
-      {/* Acceptance Requirements Checklist */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -132,7 +197,13 @@ export const UiTaskWorkspace = ({
           </h3>
 
           {verificationResults && (
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            <span
+              className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                passedCount === verificationResults.length
+                  ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
+                  : 'text-amber-700 bg-amber-50 border-amber-200'
+              }`}
+            >
               {passedCount} / {verificationResults.length} Passed
             </span>
           )}
@@ -173,11 +244,12 @@ export const UiTaskWorkspace = ({
 
         <button
           type="button"
+          disabled={isVerifying}
           onClick={handleVerifyUi}
-          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+          className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Verify UI Requirements</span>
+          <span>{isVerifying ? 'Inspecting Live DOM...' : 'Verify UI Requirements'}</span>
         </button>
       </div>
     </div>
@@ -185,49 +257,34 @@ export const UiTaskWorkspace = ({
 
   const rightContent = (
     <div className="h-full flex flex-col p-3 sm:p-4 bg-slate-900 gap-3 overflow-hidden">
-      {/* Editor Sub-Header (HTML / CSS / JS Tabs) */}
       <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
         <div className="flex items-center space-x-1.5">
           <Code className="w-4 h-4 text-indigo-400" />
           <div className="flex items-center bg-slate-900 p-0.5 rounded-md border border-slate-800">
-            <button
-              type="button"
-              onClick={() => setActiveCodeTab('html')}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition cursor-pointer ${
-                activeCodeTab === 'html'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              index.html
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveCodeTab('css')}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition cursor-pointer ${
-                activeCodeTab === 'css'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              styles.css
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveCodeTab('js')}
-              className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition cursor-pointer ${
-                activeCodeTab === 'js'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              script.js
-            </button>
+            {[
+              { id: 'html', label: 'index.html' },
+              { id: 'css', label: 'styles.css' },
+              { id: 'js', label: 'script.js' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveCodeTab(tab.id)}
+                className={`px-2.5 py-1 rounded text-xs font-mono font-medium transition cursor-pointer ${
+                  activeCodeTab === tab.id
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
         <button
           type="button"
+          disabled={isVerifying}
           onClick={handleVerifyUi}
           className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
         >
@@ -236,8 +293,7 @@ export const UiTaskWorkspace = ({
         </button>
       </div>
 
-      {/* Monaco Editor for Active Tab */}
-      <div className="flex-1 min-h-[240px] relative">
+      <div className="flex-1 min-h-[220px] relative">
         {activeCodeTab === 'html' && (
           <MonacoCodeEditor
             language="html"
@@ -268,23 +324,49 @@ export const UiTaskWorkspace = ({
       </div>
 
       {/* Sandboxed Live Preview Iframe */}
-      <div className="h-60 bg-white border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
+      <div className="h-64 bg-white border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
         <div className="bg-slate-900 px-3.5 py-1.5 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
           <div className="flex items-center space-x-1.5">
             <Eye className="w-3.5 h-3.5 text-cyan-400" />
             <span className="font-semibold text-slate-200">Interactive Live Render Preview</span>
           </div>
-          <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-            Sandboxed Iframe
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-950 rounded border border-slate-700 p-0.5">
+              <button
+                type="button"
+                onClick={() => setPreviewMode('desktop')}
+                className={`p-1 rounded transition cursor-pointer ${
+                  previewMode === 'desktop' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                }`}
+                title="Desktop Viewport"
+              >
+                <Monitor className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode('mobile')}
+                className={`p-1 rounded transition cursor-pointer ${
+                  previewMode === 'mobile' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                }`}
+                title="Mobile Viewport (360px)"
+              >
+                <Smartphone className="w-3 h-3" />
+              </button>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+              Sandboxed Iframe
+            </span>
+          </div>
         </div>
 
-        <div className="flex-1 w-full bg-slate-50 relative overflow-hidden">
+        <div className="flex-1 w-full bg-slate-100 relative overflow-auto flex justify-center">
           <iframe
+            ref={iframeRef}
             title="UI Task Preview"
             srcDoc={previewDocument}
             sandbox="allow-scripts"
-            className="w-full h-full border-none"
+            style={{ width: previewMode === 'mobile' ? '360px' : '100%' }}
+            className="h-full border-none bg-slate-50 transition-all duration-200"
           />
         </div>
       </div>

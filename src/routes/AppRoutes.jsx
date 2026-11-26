@@ -14,6 +14,7 @@ import PublicOnlyRoute from '../components/guards/PublicOnlyRoute'
 // Pages
 import HomePage from '../pages/HomePage'
 import LoginPage from '../pages/auth/LoginPage'
+import RegisterPage from '../pages/auth/RegisterPage'
 import UnauthorizedPage from '../pages/auth/UnauthorizedPage'
 import NotFoundPage from '../pages/NotFoundPage'
 
@@ -26,6 +27,9 @@ import SuperAdminDashboard from '../pages/dashboards/SuperAdminDashboard'
 // Phase 2 Assessment Engine Pages
 import AssessmentsListPage from '../pages/assessment/AssessmentsListPage'
 import AssessmentPlayerPage from '../pages/assessment/AssessmentPlayerPage'
+
+// Phase 3 Gamified Cognitive Rounds Page
+import GamifiedRoundsPage from '../pages/gamified/GamifiedRoundsPage'
 
 // Phase Handover Placeholder for upcoming sub-routes
 const UpcomingPhasePlaceholder = ({ phase, title, roleName }) => (
@@ -49,12 +53,19 @@ export const AppRoutes = () => {
 
       {/* Auth Routes with AuthLayout */}
       <Route element={<AuthLayout />}>
-        {/* Login is protected by PublicOnlyRoute (authenticated users redirected) */}
         <Route
           path={ROUTES.LOGIN}
           element={
             <PublicOnlyRoute>
               <LoginPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path={ROUTES.REGISTER}
+          element={
+            <PublicOnlyRoute>
+              <RegisterPage />
             </PublicOnlyRoute>
           }
         />
@@ -73,23 +84,13 @@ export const AppRoutes = () => {
 
         {/* Standard Application Shell with Navbar & Sidebar */}
         <Route element={<AppLayout />}>
-          {/* =========================================
-              STUDENT ZONE (Role: STUDENT)
-             ========================================= */}
+          {/* STUDENT ZONE (Role: STUDENT) */}
           <Route element={<RoleGuard allowedRoles={[ROLES.STUDENT]} />}>
             <Route path={ROUTES.STUDENT.ROOT} element={<Navigate to={ROUTES.STUDENT.DASHBOARD} replace />} />
             <Route path={ROUTES.STUDENT.DASHBOARD} element={<StudentDashboard />} />
             <Route path={ROUTES.STUDENT.ASSESSMENTS} element={<AssessmentsListPage />} />
-            <Route
-              path={ROUTES.STUDENT.GAMES}
-              element={
-                <UpcomingPhasePlaceholder
-                  phase="Phase 3"
-                  title="Accenture & Capgemini Gamified Cognitive Rounds"
-                  roleName="Student"
-                />
-              }
-            />
+            <Route path={ROUTES.STUDENT.GAMES} element={<GamifiedRoundsPage />} />
+            <Route path={ROUTES.STUDENT.GAMES_COMPANY} element={<GamifiedRoundsPage />} />
             <Route
               path={ROUTES.STUDENT.STUDY_PLAN}
               element={
@@ -112,9 +113,7 @@ export const AppRoutes = () => {
             />
           </Route>
 
-          {/* =========================================
-              TEACHER / FACULTY ZONE (Role: TEACHER)
-             ========================================= */}
+          {/* TEACHER / FACULTY ZONE (Role: TEACHER) */}
           <Route element={<RoleGuard allowedRoles={[ROLES.TEACHER]} />}>
             <Route path={ROUTES.TEACHER.ROOT} element={<Navigate to={ROUTES.TEACHER.DASHBOARD} replace />} />
             <Route path={ROUTES.TEACHER.DASHBOARD} element={<TeacherDashboard />} />
@@ -160,9 +159,7 @@ export const AppRoutes = () => {
             />
           </Route>
 
-          {/* =========================================
-              INSTITUTION ADMIN ZONE (Role: INSTITUTION_ADMIN)
-             ========================================= */}
+          {/* INSTITUTION ADMIN ZONE (Role: INSTITUTION_ADMIN) */}
           <Route element={<RoleGuard allowedRoles={[ROLES.INSTITUTION_ADMIN]} />}>
             <Route path={ROUTES.ADMIN.ROOT} element={<Navigate to={ROUTES.ADMIN.DASHBOARD} replace />} />
             <Route path={ROUTES.ADMIN.DASHBOARD} element={<AdminDashboard />} />
@@ -208,9 +205,7 @@ export const AppRoutes = () => {
             />
           </Route>
 
-          {/* =========================================
-              PLATFORM SUPER ADMIN ZONE (Role: SUPER_ADMIN)
-             ========================================= */}
+          {/* PLATFORM SUPER ADMIN ZONE (Role: SUPER_ADMIN) */}
           <Route element={<RoleGuard allowedRoles={[ROLES.SUPER_ADMIN]} />}>
             <Route
               path={ROUTES.SUPER_ADMIN.ROOT}

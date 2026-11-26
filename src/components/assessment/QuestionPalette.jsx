@@ -146,6 +146,8 @@ export const QuestionPalette = ({
                     ? 'SQL'
                     : q.type === 'UI_TASK'
                     ? 'UI'
+                    : q.type === 'GAMIFIED'
+                    ? 'GAME'
                     : 'MCQ'}
                 </span>
               </button>

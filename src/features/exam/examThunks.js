@@ -3,6 +3,7 @@ import {
   examStartLoading,
   examLoadingFailed,
   setAssessment,
+  saveAnswer,
   updateAuthoritativeServerTime,
   executionStart,
   executionSuccess,
@@ -15,18 +16,20 @@ import {
 /**
  * Fetch and initialize assessment by ID
  */
-export const loadAssessment = (assessmentId) => async (dispatch) => {
-  dispatch(examStartLoading())
-  try {
-    const data = await assessmentApi.getAssessmentById(assessmentId)
-    dispatch(setAssessment(data))
-    return { success: true, data }
-  } catch (error) {
-    const msg = error.message || 'Failed to initialize assessment'
-    dispatch(examLoadingFailed(msg))
-    return { success: false, error: msg }
+export const loadAssessment =
+  (assessmentId, { forceReset = false } = {}) =>
+  async (dispatch) => {
+    dispatch(examStartLoading())
+    try {
+      const data = await assessmentApi.getAssessmentById(assessmentId)
+      dispatch(setAssessment({ assessment: data, forceReset }))
+      return { success: true, data }
+    } catch (error) {
+      const msg = error.message || 'Failed to initialize assessment'
+      dispatch(examLoadingFailed(msg))
+      return { success: false, error: msg }
+    }
   }
-}
 
 /**
  * Sync server-authoritative timer
@@ -58,6 +61,7 @@ export const executeCode =
         customInput,
       })
       dispatch(executionSuccess({ questionId, results }))
+      dispatch(saveAnswer({ questionId, answerData: { hasExecuted: true } }))
       return { success: true, results }
     } catch (error) {
       const msg = error.message || 'Sandbox execution error'
@@ -80,6 +84,7 @@ export const executeSql =
         query,
       })
       dispatch(executionSuccess({ questionId, results }))
+      dispatch(saveAnswer({ questionId, answerData: { hasExecuted: true } }))
       return { success: true, results }
     } catch (error) {
       const msg = error.message || 'SQL execution failed'
@@ -89,25 +94,33 @@ export const executeSql =
   }
 
 /**
- * Final submit assessment
+ * Final submit assessment (manual or deadline auto-submit)
  */
 export const finalizeSubmission =
-  (assessmentId) => async (dispatch, getState) => {
+  (assessmentId, { isAutoSubmit = false } = {}) =>
+  async (dispatch, getState) => {
     const state = getState()
-    const answers = state.exam.answers
+    const { answers, timer, submission } = state.exam
 
-    dispatch(submissionStart())
+    if (submission.isSubmitting || submission.isSubmitted) {
+      return { success: true, result: submission }
+    }
+
+    dispatch(submissionStart({ isAutoSubmit }))
     try {
       const result = await assessmentApi.submitAssessment({
         assessmentId,
         answers,
+        serverDeadline: timer.serverDeadline,
+        isAutoSubmit,
         proctoringMetadata: {
           clientTimestamp: new Date().toISOString(),
-          timeRemainingSeconds: state.exam.timer.remainingSeconds,
+          timeRemainingSeconds: timer.remainingSeconds,
           answeredCount: Object.keys(answers).length,
+          autoSubmittedAtDeadline: isAutoSubmit,
         },
       })
-      dispatch(submissionSuccess(result))
+      dispatch(submissionSuccess({ ...result, assessmentId }))
       return { success: true, result }
     } catch (error) {
       const msg = error.message || 'Submission failed'
